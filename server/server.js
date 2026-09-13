@@ -12,7 +12,7 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: true,
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true,
   })
 );
@@ -43,6 +43,38 @@ app.get("/api/health", (req, res) => {
     service: "N-AI Chat V2 API",
     timestamp: new Date().toISOString(),
   });
+});
+
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { messages } = req.body;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Messages are required.",
+      });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(503).json({
+        success: false,
+        error: "AI service is not configured yet.",
+      });
+    }
+
+    return res.status(501).json({
+      success: false,
+      error: "AI engine connection will be activated in the next step.",
+    });
+  } catch (error) {
+    console.error("Chat API error:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "Internal server error.",
+    });
+  }
 });
 
 app.listen(PORT, "0.0.0.0", () => {
