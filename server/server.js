@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 const app = express();
 
 const PORT = process.env.PORT || 3001;
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.6-luna";
 
 app.use(helmet());
 
@@ -59,13 +60,38 @@ app.post("/api/chat", async (req, res) => {
     if (!process.env.OPENAI_API_KEY) {
       return res.status(503).json({
         success: false,
-        error: "AI service is not configured yet.",
+        error: "OPENAI_API_KEY is not configured.",
       });
     }
 
-    return res.status(501).json({
-      success: false,
-      error: "AI engine connection will be activated in the next step.",
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        input: messages,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("OpenAI API error:", data);
+
+      return res.status(response.status).json({
+        success: false,
+        error: data?.error?.message || "OpenAI API request failed.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      model: OPENAI_MODEL,
+      response: data.output_text || "",
+      responseId: data.id || null,
     });
   } catch (error) {
     console.error("Chat API error:", error);
