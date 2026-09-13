@@ -5,8 +5,6 @@ import Topbar from "./components/layout/Topbar";
 import WelcomeScreen from "./components/chat/WelcomeScreen";
 import Composer from "./components/chat/Composer";
 
-const API_URL = "http://localhost:3001";
-
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -32,7 +30,7 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/chat`, {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
