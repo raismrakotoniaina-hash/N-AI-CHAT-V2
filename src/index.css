@@ -1,3 +1,4 @@
+
 :root {
   font-family:
     Inter,
@@ -13,6 +14,7 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -23,12 +25,18 @@ html,
 body,
 #root {
   width: 100%;
+  min-width: 0;
   min-height: 100%;
   margin: 0;
 }
 
+html {
+  background: #040712;
+}
+
 body {
   min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
   background: #040712;
 }
@@ -44,9 +52,18 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* APP */
+
 .app {
+  width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
+  overflow: hidden;
   background:
     radial-gradient(
       circle at 70% 20%,
@@ -65,14 +82,22 @@ button {
 
 .sidebar {
   width: 260px;
+  min-width: 260px;
   min-height: 100vh;
+  min-height: 100dvh;
+
   display: flex;
   flex-direction: column;
+
   padding: 20px 14px;
+
   border-right: 1px solid rgba(117, 159, 255, 0.1);
+
   background: rgba(6, 11, 25, 0.88);
+
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+
   z-index: 30;
 }
 
@@ -80,6 +105,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   padding: 0 7px;
   margin-bottom: 24px;
 }
@@ -94,9 +120,16 @@ button {
 .mini-logo {
   display: grid;
   place-items: center;
+
   color: white;
   font-weight: 900;
-  background: linear-gradient(135deg, #00cfff, #6965ff);
+
+  background: linear-gradient(
+    135deg,
+    #00cfff,
+    #6965ff
+  );
+
   box-shadow:
     0 0 22px rgba(0, 207, 255, 0.25),
     inset 0 0 15px rgba(255, 255, 255, 0.12);
@@ -105,7 +138,9 @@ button {
 .brand-logo {
   width: 39px;
   height: 39px;
+
   border-radius: 12px;
+
   font-size: 20px;
 }
 
@@ -121,7 +156,9 @@ button {
 
 .brand-text span {
   margin-top: 3px;
+
   color: #63ddff;
+
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 2px;
@@ -129,6 +166,8 @@ button {
 
 .close-sidebar {
   display: none;
+  place-items: center;
+
   color: #8795ad;
   background: transparent;
 }
@@ -136,42 +175,66 @@ button {
 .new-chat {
   width: 100%;
   height: 46px;
+
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
+
   border: 1px solid rgba(73, 210, 255, 0.24);
   border-radius: 13px;
+
   color: #eaf9ff;
   background: rgba(21, 55, 78, 0.35);
-  box-shadow: inset 0 0 20px rgba(0, 180, 255, 0.03);
-  transition: 0.2s ease;
+
+  box-shadow:
+    inset 0 0 20px rgba(0, 180, 255, 0.03);
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .new-chat:hover {
   border-color: rgba(73, 210, 255, 0.5);
-  box-shadow: 0 0 22px rgba(0, 190, 255, 0.08);
+
+  box-shadow:
+    0 0 22px rgba(0, 190, 255, 0.08);
+}
+
+.new-chat:active {
+  transform: scale(0.985);
 }
 
 .navigation {
   display: flex;
   flex-direction: column;
   gap: 5px;
+
   margin-top: 25px;
 }
 
 .nav-item {
   width: 100%;
   height: 43px;
+
   display: flex;
   align-items: center;
   gap: 12px;
+
   padding: 0 12px;
+
   border-radius: 11px;
+
   color: #7f8da8;
   background: transparent;
+
   text-align: left;
-  transition: 0.2s ease;
+
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .nav-item:hover {
@@ -192,10 +255,13 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
+
   margin-top: 12px;
   padding: 11px;
+
   border: 1px solid rgba(109, 145, 210, 0.1);
   border-radius: 13px;
+
   background: rgba(14, 23, 43, 0.65);
 }
 
@@ -203,7 +269,9 @@ button {
 .profile-avatar {
   display: grid;
   place-items: center;
+
   border-radius: 50%;
+
   color: #9eeaff;
   background: rgba(38, 98, 128, 0.28);
 }
@@ -215,9 +283,10 @@ button {
 
 .user-info {
   flex: 1;
+  min-width: 0;
+
   display: flex;
   flex-direction: column;
-  min-width: 0;
 }
 
 .user-info strong {
@@ -227,6 +296,7 @@ button {
 
 .user-info span {
   margin-top: 3px;
+
   color: #66748d;
   font-size: 10px;
 }
@@ -236,24 +306,37 @@ button {
 .main-panel {
   flex: 1;
   min-width: 0;
-  min-height: 100vh;
+
   position: relative;
+
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .topbar {
   height: 70px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   padding: 0 25px;
+
   border-bottom: 1px solid rgba(117, 159, 255, 0.08);
+
   background: rgba(4, 7, 18, 0.58);
+
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+
+  position: relative;
+  z-index: 10;
 }
 
 .menu-button {
   display: none;
+  place-items: center;
+
   color: #a6b5ca;
   background: transparent;
 }
@@ -264,15 +347,23 @@ button {
   gap: 9px;
 }
 
+.mobile-brand strong {
+  color: #e8f4ff;
+  font-size: 13px;
+}
+
 .mini-logo {
   width: 31px;
   height: 31px;
+
   border-radius: 9px;
+
   font-size: 15px;
 }
 
 .topbar-right {
   margin-left: auto;
+
   display: flex;
   align-items: center;
   gap: 13px;
@@ -280,18 +371,28 @@ button {
 
 .credits {
   height: 34px;
+
   display: flex;
   align-items: center;
   gap: 7px;
+
   padding: 0 11px;
+
   border: 1px solid rgba(106, 213, 255, 0.12);
   border-radius: 10px;
+
   color: #86dfff;
   background: rgba(22, 58, 78, 0.22);
+
   font-size: 11px;
 }
 
 .profile-button {
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
   background: transparent;
 }
 
@@ -304,9 +405,16 @@ button {
 
 .chat-content {
   width: min(900px, 100%);
+
   min-height: calc(100vh - 70px);
+  min-height: calc(100dvh - 70px);
+
   margin: 0 auto;
-  padding: 80px 25px 170px;
+
+  padding:
+    80px
+    25px
+    180px;
 }
 
 .hero {
@@ -316,17 +424,22 @@ button {
 .hero-orb {
   width: 82px;
   height: 82px;
+
   display: grid;
   place-items: center;
+
   margin: 0 auto 22px;
+
   border: 1px solid rgba(81, 213, 255, 0.22);
   border-radius: 25px;
+
   background:
     radial-gradient(
       circle,
       rgba(49, 157, 255, 0.2),
       rgba(52, 67, 145, 0.08)
     );
+
   box-shadow:
     0 0 45px rgba(0, 190, 255, 0.1),
     inset 0 0 30px rgba(77, 122, 255, 0.06);
@@ -335,25 +448,35 @@ button {
 .hero-orb-inner {
   width: 54px;
   height: 54px;
+
   display: grid;
   place-items: center;
+
   border-radius: 18px;
+
   color: #82e6ff;
   background: rgba(29, 76, 111, 0.35);
-  box-shadow: 0 0 24px rgba(0, 205, 255, 0.15);
+
+  box-shadow:
+    0 0 24px rgba(0, 205, 255, 0.15);
 }
 
 .hero-badge {
   width: fit-content;
+
   display: flex;
   align-items: center;
   gap: 7px;
+
   margin: 0 auto 17px;
   padding: 6px 10px;
+
   border: 1px solid rgba(102, 212, 255, 0.13);
   border-radius: 20px;
+
   color: #7891ae;
   background: rgba(16, 28, 50, 0.5);
+
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 1.5px;
@@ -362,30 +485,48 @@ button {
 .hero-badge span {
   width: 5px;
   height: 5px;
+
   border-radius: 50%;
+
   background: #3cf2a6;
-  box-shadow: 0 0 9px rgba(60, 242, 166, 0.8);
+
+  box-shadow:
+    0 0 9px rgba(60, 242, 166, 0.8);
 }
 
 .hero h1 {
   margin: 0;
+
+  color: #f5f8ff;
+
   font-size: clamp(38px, 6vw, 65px);
   line-height: 1.02;
+
   letter-spacing: -2.7px;
-  color: #f5f8ff;
 }
 
 .hero h1 span {
-  background: linear-gradient(90deg, #42dfff, #7b7aff, #9c8cff);
+  background:
+    linear-gradient(
+      90deg,
+      #42dfff,
+      #7b7aff,
+      #9c8cff
+    );
+
   -webkit-background-clip: text;
   background-clip: text;
+
   color: transparent;
 }
 
 .hero p {
   max-width: 570px;
+
   margin: 21px auto 0;
+
   color: #76849d;
+
   font-size: 14px;
   line-height: 1.7;
 }
@@ -396,28 +537,47 @@ button {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 11px;
+
   margin-top: 55px;
 }
 
 .quick-actions button {
   min-height: 92px;
+
   display: flex;
   align-items: flex-start;
   gap: 12px;
+
   padding: 17px;
+
   border: 1px solid rgba(102, 148, 224, 0.1);
   border-radius: 15px;
+
   color: #77dcff;
   background: rgba(12, 23, 43, 0.62);
+
   text-align: left;
-  transition: 0.25s ease;
+
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 .quick-actions button:hover {
   transform: translateY(-2px);
+
   border-color: rgba(82, 209, 255, 0.25);
+
   background: rgba(17, 36, 62, 0.72);
-  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.16);
+
+  box-shadow:
+    0 10px 35px rgba(0, 0, 0, 0.16);
+}
+
+.quick-actions button:active {
+  transform: translateY(0) scale(0.985);
 }
 
 .quick-actions div {
@@ -441,32 +601,45 @@ button {
 
 .composer-wrapper {
   position: fixed;
+
   left: 260px;
   right: 0;
   bottom: 0;
-  padding: 14px 25px 18px;
+
+  padding:
+    14px
+    25px
+    18px;
+
   background:
     linear-gradient(
       to top,
       rgba(4, 7, 18, 0.99) 40%,
       rgba(4, 7, 18, 0.82)
     );
+
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+
   z-index: 20;
 }
 
 .composer {
   width: min(820px, 100%);
   min-height: 58px;
+
   display: flex;
   align-items: center;
   gap: 7px;
+
   margin: 0 auto;
   padding: 6px;
+
   border: 1px solid rgba(103, 178, 255, 0.14);
   border-radius: 18px;
+
   background: rgba(12, 22, 40, 0.9);
+
   box-shadow:
     0 0 35px rgba(0, 0, 0, 0.18),
     inset 0 0 20px rgba(66, 142, 255, 0.025);
@@ -475,15 +648,24 @@ button {
 .composer textarea {
   flex: 1;
   min-width: 0;
+
   min-height: 44px;
   max-height: 120px;
+
   resize: none;
+
   padding: 12px 9px;
+
   outline: none;
   border: 0;
+
   color: #eef6ff;
   background: transparent;
+
   font-size: 13px;
+  line-height: 1.45;
+
+  scrollbar-width: thin;
 }
 
 .composer textarea::placeholder {
@@ -494,12 +676,22 @@ button {
 .send-button {
   width: 43px;
   height: 43px;
+
   flex: 0 0 43px;
+
   display: grid;
   place-items: center;
+
   border-radius: 13px;
+
   color: #71829d;
   background: transparent;
+
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .composer-icon:hover {
@@ -509,29 +701,62 @@ button {
 
 .send-button {
   color: white;
-  background: linear-gradient(135deg, #009ed3, #6661ef);
+
+  background:
+    linear-gradient(
+      135deg,
+      #009ed3,
+      #6661ef
+    );
+
   box-shadow:
     0 0 18px rgba(0, 188, 255, 0.18),
     0 0 25px rgba(102, 97, 239, 0.1);
 }
 
-.send-button:hover {
+.send-button:hover:not(:disabled) {
   box-shadow:
     0 0 25px rgba(0, 188, 255, 0.3),
     0 0 35px rgba(102, 97, 239, 0.18);
 }
 
+.send-button:disabled {
+  opacity: 0.32;
+
+  background:
+    linear-gradient(
+      135deg,
+      #27475a,
+      #3b3a62
+    );
+
+  box-shadow: none;
+}
+
 .composer-footer {
   width: min(820px, 100%);
+
   display: flex;
+  align-items: center;
   justify-content: space-between;
+
   margin: 8px auto 0;
   padding: 0 5px;
+
   color: #4d5a70;
+
   font-size: 9px;
 }
 
-/* MOBILE */
+.composer-footer span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  min-width: 0;
+}
+
+/* MOBILE OVERLAY */
 
 .mobile-overlay {
   display: none;
@@ -540,33 +765,58 @@ button {
 @media (max-width: 800px) {
   .sidebar {
     position: fixed;
+
     left: -280px;
     top: 0;
+    bottom: 0;
+
     width: 270px;
-    transition: left 0.25s ease;
-    box-shadow: 20px 0 50px rgba(0, 0, 0, 0.35);
+    min-width: 270px;
+    height: 100vh;
+    height: 100dvh;
+
+    transition:
+      left 0.25s ease;
+
+    box-shadow:
+      20px 0 50px rgba(0, 0, 0, 0.35);
   }
 
   .sidebar.open {
     left: 0;
   }
 
-  .sidebar.open + .mobile-overlay {
-    display: block;
-  }
-
   .close-sidebar {
     display: grid;
-    place-items: center;
   }
 
   .menu-button {
     display: grid;
-    place-items: center;
   }
 
   .mobile-brand {
     display: flex;
+  }
+
+  /*
+    Overlay:
+    above the main content,
+    below the sidebar.
+  */
+  .mobile-overlay {
+    display: block;
+
+    position: fixed;
+
+    inset: 0;
+
+    background:
+      rgba(0, 0, 0, 0.48);
+
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+
+    z-index: 25;
   }
 
   .composer-wrapper {
@@ -578,10 +828,17 @@ button {
   }
 }
 
+/* TABLET / SMALL */
+
 @media (max-width: 620px) {
   .topbar {
     height: 62px;
+
     padding: 0 13px;
+  }
+
+  .credits {
+    padding: 0 9px;
   }
 
   .credits span {
@@ -590,18 +847,25 @@ button {
 
   .chat-content {
     min-height: calc(100vh - 62px);
-    padding: 48px 14px 160px;
+    min-height: calc(100dvh - 62px);
+
+    padding:
+      48px
+      14px
+      165px;
   }
 
   .hero-orb {
     width: 70px;
     height: 70px;
+
     border-radius: 21px;
   }
 
   .hero-orb-inner {
     width: 47px;
     height: 47px;
+
     border-radius: 15px;
   }
 
@@ -616,6 +880,7 @@ button {
 
   .quick-actions {
     grid-template-columns: 1fr;
+
     margin-top: 40px;
   }
 
@@ -624,15 +889,25 @@ button {
   }
 
   .composer-wrapper {
-    padding: 9px 9px 13px;
+    padding:
+      9px
+      9px
+      13px;
   }
 
   .composer {
     min-height: 54px;
+
     border-radius: 16px;
   }
 
   .composer textarea {
+    min-height: 40px;
+
+    padding:
+      10px
+      6px;
+
     font-size: 12px;
   }
 
@@ -640,7 +915,9 @@ button {
   .send-button {
     width: 39px;
     height: 39px;
+
     flex-basis: 39px;
+
     border-radius: 11px;
   }
 
@@ -651,4 +928,46 @@ button {
   .composer-footer span:last-child {
     display: none;
   }
+}
+
+/* VERY SMALL PHONES */
+
+@media (max-width: 380px) {
+  .topbar {
+    padding: 0 10px;
   }
+
+  .topbar-right {
+    gap: 7px;
+  }
+
+  .profile-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .chat-content {
+    padding-left: 11px;
+    padding-right: 11px;
+  }
+
+  .hero h1 {
+    font-size: 34px;
+  }
+
+  .hero p {
+    font-size: 12px;
+  }
+
+  .composer {
+    gap: 3px;
+  }
+
+  .composer-icon,
+  .send-button {
+    width: 36px;
+    height: 36px;
+
+    flex-basis: 36px;
+  }
+                        }
