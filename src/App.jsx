@@ -4,6 +4,7 @@ import Sidebar from "./components/layout/Sidebar";
 import Topbar from "./components/layout/Topbar";
 import WelcomeScreen from "./components/chat/WelcomeScreen";
 import Composer from "./components/chat/Composer";
+import MessageBubble from "./components/chat/MessageBubble";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -100,32 +101,18 @@ function App() {
           <main className="chat-content">
             <div className="messages">
               {messages.map((item, index) => (
-                <div
-                  className={`message ${
-                    item.role === "user"
-                      ? "message-user"
-                      : "message-ai"
-                  }`}
+                <MessageBubble
                   key={index}
-                >
-                  <div className="message-role">
-                    {item.role === "user" ? "Vous" : "N-AI"}
-                  </div>
-
-                  <div className="message-content">
-                    {item.content}
-                  </div>
-                </div>
+                  role={item.role}
+                  content={item.content}
+                />
               ))}
 
               {loading && (
-                <div className="message message-ai">
-                  <div className="message-role">N-AI</div>
-
-                  <div className="message-content">
-                    Réflexion en cours...
-                  </div>
-                </div>
+                <MessageBubble
+                  role="assistant"
+                  loading
+                />
               )}
             </div>
           </main>
