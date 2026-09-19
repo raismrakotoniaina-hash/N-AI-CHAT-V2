@@ -111,7 +111,8 @@ function App() {
               {loading && (
                 <MessageBubble
                   role="assistant"
-                  loading
+                  content=""
+                  loading={true}
                 />
               )}
             </div>
