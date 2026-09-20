@@ -971,3 +971,137 @@ button:disabled {
     flex-basis: 36px;
   }
                         }
+/* =========================================
+   N-AI MESSAGE MARKDOWN
+   ========================================= */
+
+.message-text {
+  line-height: 1.7;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.message-text h2,
+.message-text h3,
+.message-text h4 {
+  margin: 14px 0 8px;
+  font-weight: 700;
+}
+
+.message-text h2 {
+  font-size: 1.25rem;
+}
+
+.message-text h3 {
+  font-size: 1.1rem;
+}
+
+.message-text h4 {
+  font-size: 1rem;
+}
+
+.message-list-item {
+  margin: 5px 0;
+  line-height: 1.6;
+}
+
+.message-space {
+  height: 8px;
+}
+
+.inline-code {
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.9em;
+  background: rgba(120, 140, 255, 0.12);
+  border: 1px solid rgba(120, 140, 255, 0.18);
+}
+
+/* Code block */
+
+.code-block {
+  width: 100%;
+  margin: 14px 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0b0e16;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  color: #aeb7c8;
+  text-transform: lowercase;
+}
+
+.code-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #dce4f5;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.code-copy:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 14px;
+  overflow-x: auto;
+  white-space: pre;
+  -webkit-overflow-scrolling: touch;
+}
+
+.code-block code {
+  font-family:
+    "Fira Code",
+    "Cascadia Code",
+    Consolas,
+    monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #e7ebf5;
+}
+
+/* Message copy */
+
+.message-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Mobile */
+
+@media (max-width: 620px) {
+  .code-block {
+    max-width: 100%;
+  }
+
+  .code-block pre {
+    padding: 12px;
+  }
+
+  .code-block code {
+    font-size: 12px;
+  }
+
+  .message-text {
+    font-size: 14px;
+  }
+    }
