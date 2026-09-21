@@ -10,7 +10,11 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-function Sidebar({ open, onClose }) {
+function Sidebar({
+  open,
+  onClose,
+  onNewChat,
+}) {
   const menuItems = [
     {
       icon: MessageSquare,
@@ -30,12 +34,24 @@ function Sidebar({ open, onClose }) {
     },
   ];
 
+  const handleNewChat = () => {
+    if (onNewChat) {
+      onNewChat();
+    }
+  };
+
   return (
     <>
-      <aside className={`sidebar ${open ? "open" : ""}`}>
+      <aside
+        className={`sidebar ${
+          open ? "open" : ""
+        }`}
+      >
         <div className="sidebar-top">
           <div className="brand">
-            <div className="brand-logo">N</div>
+            <div className="brand-logo">
+              N
+            </div>
 
             <div className="brand-text">
               <strong>N-AI</strong>
@@ -47,14 +63,21 @@ function Sidebar({ open, onClose }) {
             className="close-sidebar"
             onClick={onClose}
             aria-label="Fermer le menu"
+            type="button"
           >
             <X size={19} />
           </button>
         </div>
 
-        <button className="new-chat">
+        <button
+          className="new-chat"
+          onClick={handleNewChat}
+          type="button"
+        >
           <Plus size={19} />
-          <span>Nouvelle conversation</span>
+          <span>
+            Nouvelle conversation
+          </span>
         </button>
 
         <nav className="navigation">
@@ -62,7 +85,11 @@ function Sidebar({ open, onClose }) {
             const Icon = item.icon;
 
             return (
-              <button className="nav-item" key={item.label}>
+              <button
+                className="nav-item"
+                key={item.label}
+                type="button"
+              >
                 <Icon size={18} />
                 <span>{item.label}</span>
               </button>
@@ -71,7 +98,10 @@ function Sidebar({ open, onClose }) {
         </nav>
 
         <div className="sidebar-bottom">
-          <button className="nav-item">
+          <button
+            className="nav-item"
+            type="button"
+          >
             <Settings size={18} />
             <span>Paramètres</span>
           </button>
@@ -82,7 +112,9 @@ function Sidebar({ open, onClose }) {
             </div>
 
             <div className="user-info">
-              <strong>Utilisateur</strong>
+              <strong>
+                Utilisateur
+              </strong>
               <span>Free Plan</span>
             </div>
 
