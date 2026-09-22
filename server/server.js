@@ -188,7 +188,7 @@ app.post("/api/chat", async (req, res) => {
       return res.status(response.status).json({
         success: false,
         error: data?.error?.message || "OpenAI API request failed.",
-        credits: demoCredits,
+        credits: user.credits,
       });
     }
 
