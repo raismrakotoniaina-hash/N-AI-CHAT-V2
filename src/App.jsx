@@ -4,6 +4,7 @@ import Topbar from "./components/layout/Topbar";
 import WelcomeScreen from "./components/chat/WelcomeScreen";
 import Composer from "./components/chat/Composer";
 import MessageBubble from "./components/chat/MessageBubble";
+import AuthPage from "./components/auth/AuthPage";
 import { LANGUAGES, useTranslation } from "./services/i18n";
 import { PLANS, formatMGA } from "./config/plans";
 
@@ -16,6 +17,9 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState("chat");
+  const [user, setUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [credits, setCredits] = useState(0);
 
   useEffect(() => {
     try {
@@ -32,7 +36,7 @@ function App() {
     catch (error) { console.error("Erreur sauvegarde historique:", error); }
   }, [messages]);
 
-  const handleNavigate = (page) => { setCurrentPage(page); setSidebarOpen(false); };
+  const handleAuthenticated = (account) => { setUser(account); setCredits(account.credits); setCurrentPage("chat"); };\n\n  const handleLogout = async () => {\n    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });\n    setUser(null);\n    setCredits(0);\n    setMessages([]);\n    localStorage.removeItem(STORAGE_KEY);\n  };\n\n  const handleNavigate = (page) => { setCurrentPage(page); setSidebarOpen(false); };
 
   const handleSend = async () => {
     const text = message.trim();
@@ -51,7 +55,7 @@ function App() {
         body: JSON.stringify({ messages: updatedMessages }),
       });
       const data = await response.json();
-      if (!response.ok || !data.success) throw new Error(data.error || "Erreur API");
+      if (response.status === 401) { setUser(null); throw new Error("Session expirée. Veuillez vous reconnecter."); }\n      if (!response.ok || !data.success) throw new Error(data.error || "Erreur API");\n      setCredits(data.credits ?? credits);
 
       setMessages((current) => [...current, {
         role: "assistant",
@@ -170,7 +174,7 @@ function App() {
         <div className="feature-card profile-card">
           <div className="large-avatar">👤</div><h2>{t("user")}</h2><span className="plan-badge">{t("freePlan")}</span>
           <div className="profile-info"><div><strong>{t("balance")}</strong><span>{t("balanceDesc")}</span></div></div>
-          <button className="feature-button" type="button" onClick={() => setCurrentPage("plans")}>{t("plans")}</button>
+          <button className="feature-button" type="button" onClick={() => setCurrentPage("plans")}>{t("plans")}</button>\n          <button className="secondary-button" type="button" onClick={handleLogout}>Déconnexion</button>
         </div>
       </main>
     );
@@ -189,7 +193,7 @@ function App() {
     <div className="app">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onNewChat={handleNewChat} onNavigate={handleNavigate} />
       <section className="main-panel">
-        <Topbar onMenuOpen={() => setSidebarOpen(true)} onProfileClick={() => handleNavigate("profile")} />
+        <Topbar credits={credits} onMenuOpen={() => setSidebarOpen(true)} onProfileClick={() => handleNavigate("profile")} />
         {renderPage()}
         {currentPage === "chat" && <Composer message={message} onMessageChange={setMessage} onSend={handleSend} />}
       </section>
