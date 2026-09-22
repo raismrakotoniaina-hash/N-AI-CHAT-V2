@@ -1473,3 +1473,58 @@ button:disabled {
 @media (max-width: 620px) {
   .plans-grid { grid-template-columns: 1fr; }
 }
+
+/* =========================================
+   AUTHENTICATION
+   ========================================= */
+.auth-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: radial-gradient(circle at 50% 20%, rgba(45,150,255,.12), transparent 38%), #050b15;
+}
+.auth-card {
+  width: min(420px, 100%);
+  padding: 30px 24px;
+  border: 1px solid rgba(103,160,230,.18);
+  border-radius: 22px;
+  background: rgba(10,20,38,.82);
+  box-shadow: 0 20px 70px rgba(0,0,0,.35);
+  text-align: center;
+}
+.auth-logo {
+  width: 54px; height: 54px; margin: 0 auto 12px;
+  display: grid; place-items: center;
+  border-radius: 16px;
+  color: #fff; font-size: 25px; font-weight: 900;
+  background: linear-gradient(135deg,#5edbff,#5266ff);
+  box-shadow: 0 0 30px rgba(80,180,255,.22);
+}
+.auth-badge {
+  display: inline-block; padding: 5px 9px; border-radius: 12px;
+  color: #7fddff; background: rgba(30,110,145,.2);
+  font-size: 9px; font-weight: 800;
+}
+.auth-card h1 { margin: 18px 0 7px; color: #eef7ff; font-size: 24px; }
+.auth-card > p { margin: 0 0 20px; color: #7e8da4; font-size: 12px; }
+.auth-form { display: grid; gap: 11px; }
+.auth-form input {
+  width: 100%; box-sizing: border-box; padding: 13px 14px;
+  border: 1px solid rgba(103,160,230,.16); border-radius: 12px;
+  outline: none; color: #e9f4ff; background: rgba(5,13,27,.82);
+}
+.auth-form input:focus { border-color: rgba(83,202,255,.55); }
+.auth-form .feature-button { width: 100%; margin-top: 3px; }
+.auth-form button:disabled { opacity: .6; cursor: wait; }
+.auth-error {
+  padding: 10px; border-radius: 10px;
+  color: #ffb5be; background: rgba(255,80,105,.08);
+  font-size: 11px;
+}
+.auth-switch {
+  margin-top: 17px; border: 0; background: transparent;
+  color: #79dfff; font-size: 11px; cursor: pointer;
+}
+.profile-card .secondary-button { width: 100%; margin-top: 10px; }
