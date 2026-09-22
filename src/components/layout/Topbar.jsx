@@ -6,7 +6,7 @@ import {
 import { useEffect, useState } from "react";
 import { getAccount } from "../../services/accountService.js";
 
-function Topbar({ onMenuOpen }) {
+function Topbar({ onMenuOpen, onProfileClick }) {
   const [credits, setCredits] = useState(0);
 
   useEffect(() => {
@@ -25,6 +25,7 @@ function Topbar({ onMenuOpen }) {
         className="menu-button"
         onClick={onMenuOpen}
         aria-label="Ouvrir le menu"
+        type="button"
       >
         <Menu size={21} />
       </button>
@@ -43,6 +44,8 @@ function Topbar({ onMenuOpen }) {
         <button
           className="profile-button"
           aria-label="Profil utilisateur"
+          type="button"
+          onClick={onProfileClick}
         >
           <div className="profile-avatar">
             <User size={15} />
