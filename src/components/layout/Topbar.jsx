@@ -3,22 +3,8 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { getAccount } from "../../services/accountService.js";
 
 function Topbar({ onMenuOpen, onProfileClick }) {
-  const [credits, setCredits] = useState(0);
-
-  useEffect(() => {
-    getAccount(1)
-      .then((data) => {
-        if (data?.success) {
-          setCredits(data.account.credits);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   return (
     <header className="topbar">
       <button
@@ -38,7 +24,7 @@ function Topbar({ onMenuOpen, onProfileClick }) {
       <div className="topbar-right">
         <div className="credits">
           <Sparkles size={15} />
-          <span>{credits} crédits</span>
+          <span>20 crédits</span>
         </div>
 
         <button
