@@ -1,3 +1,10 @@
+export const CREDIT_COSTS = {
+  chat: 1,
+  coding: 8,
+  research: 8,
+  image: 50,
+};
+
 export const PLANS = [
   {
     id: "free",
@@ -11,26 +18,26 @@ export const PLANS = [
     id: "basic",
     name: "Basic",
     price: 9900,
-    credits: 500,
+    credits: 300,
     period: "month",
-    features: ["500 crédits / mois", "Chat IA", "Recherche IA", "Upload de fichiers", "Support standard"],
+    features: ["300 crédits / mois", "Chat IA", "Recherche IA", "Upload de fichiers", "Support standard"],
   },
   {
     id: "premium",
     name: "Premium",
     price: 21900,
-    credits: 2000,
+    credits: 1200,
     period: "month",
     popular: true,
-    features: ["2 000 crédits / mois", "Chat IA avancé", "Recherche web", "Génération d'images", "Mémoire IA"],
+    features: ["1 200 crédits / mois", "Chat IA avancé", "Recherche web", "Génération d'images", "Mémoire IA"],
   },
   {
     id: "pro",
     name: "Pro",
     price: 49900,
-    credits: 6000,
+    credits: 3500,
     period: "month",
-    features: ["6 000 crédits / mois", "Priorité IA", "Recherche web", "Génération d'images", "Mémoire IA", "Support prioritaire"],
+    features: ["3 500 crédits / mois", "Priorité IA", "Recherche web", "Génération d'images", "Mémoire IA", "Support prioritaire"],
   },
 ];
 
