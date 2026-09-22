@@ -1440,3 +1440,36 @@ button:disabled {
     width: 100%;
   }
 }
+
+
+/* =========================================
+   SUBSCRIPTION PLANS
+   ========================================= */
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px;
+  border: 1px solid rgba(103,160,230,.13);
+  border-radius: 18px;
+  background: rgba(11,22,41,.72);
+}
+.plan-card h2 { margin: 0 0 12px; color: #e8f3ff; font-size: 18px; }
+.plan-price { color: #f5f8ff; font-size: 23px; font-weight: 800; }
+.plan-price small { margin-left: 4px; color: #71819a; font-size: 10px; font-weight: 500; }
+.plan-credits { margin-top: 7px; color: #70dcff; font-size: 11px; }
+.plan-card ul { flex: 1; margin: 18px 0 4px; padding: 0; list-style: none; color: #8492a9; font-size: 11px; line-height: 2; }
+.plan-popular { border-color: rgba(75,210,255,.35); box-shadow: 0 0 28px rgba(0,190,255,.08); }
+.plan-popular-label { align-self: flex-start; margin-bottom: 9px; padding: 4px 8px; border-radius: 12px; color: #86e4ff; background: rgba(30,110,145,.22); font-size: 9px; font-weight: 800; }
+.plan-card .feature-button { width: 100%; margin-top: 14px; }
+@media (max-width: 900px) {
+  .plans-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .plans-grid { grid-template-columns: 1fr; }
+}
