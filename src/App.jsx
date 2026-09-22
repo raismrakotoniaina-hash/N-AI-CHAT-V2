@@ -36,7 +36,17 @@ function App() {
     catch (error) { console.error("Erreur sauvegarde historique:", error); }
   }, [messages]);
 
-  const handleAuthenticated = (account) => { setUser(account); setCredits(account.credits); setCurrentPage("chat"); };\n\n  const handleLogout = async () => {\n    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });\n    setUser(null);\n    setCredits(0);\n    setMessages([]);\n    localStorage.removeItem(STORAGE_KEY);\n  };\n\n  const handleNavigate = (page) => { setCurrentPage(page); setSidebarOpen(false); };
+  const handleAuthenticated = (account) => { setUser(account); setCredits(account.credits); setCurrentPage("chat"); };
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    setUser(null);
+    setCredits(0);
+    setMessages([]);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  const handleNavigate = (page) => { setCurrentPage(page); setSidebarOpen(false); };
 
   const handleSend = async () => {
     const text = message.trim();
@@ -55,7 +65,9 @@ function App() {
         body: JSON.stringify({ messages: updatedMessages }),
       });
       const data = await response.json();
-      if (response.status === 401) { setUser(null); throw new Error("Session expirée. Veuillez vous reconnecter."); }\n      if (!response.ok || !data.success) throw new Error(data.error || "Erreur API");\n      setCredits(data.credits ?? credits);
+      if (response.status === 401) { setUser(null); throw new Error("Session expirée. Veuillez vous reconnecter."); }
+      if (!response.ok || !data.success) throw new Error(data.error || "Erreur API");
+      setCredits(data.credits ?? credits);
 
       setMessages((current) => [...current, {
         role: "assistant",
@@ -174,7 +186,8 @@ function App() {
         <div className="feature-card profile-card">
           <div className="large-avatar">👤</div><h2>{t("user")}</h2><span className="plan-badge">{t("freePlan")}</span>
           <div className="profile-info"><div><strong>{t("balance")}</strong><span>{t("balanceDesc")}</span></div></div>
-          <button className="feature-button" type="button" onClick={() => setCurrentPage("plans")}>{t("plans")}</button>\n          <button className="secondary-button" type="button" onClick={handleLogout}>Déconnexion</button>
+          <button className="feature-button" type="button" onClick={() => setCurrentPage("plans")}>{t("plans")}</button>
+          <button className="secondary-button" type="button" onClick={handleLogout}>Déconnexion</button>
         </div>
       </main>
     );
