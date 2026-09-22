@@ -501,6 +501,9 @@ function App() {
           onMenuOpen={() =>
             setSidebarOpen(true)
           }
+          onProfileClick={() =>
+            handleNavigate("profile")
+          }
         />
 
         {renderPage()}
