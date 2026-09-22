@@ -13,6 +13,18 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.6-luna";
 
+// Credit costs. Keep these on the backend so users cannot change them from the browser.
+const CREDIT_COSTS = {
+  chat: 1,
+  coding: 8,
+  research: 8,
+  image: 50,
+};
+
+// Temporary server-side balance for the current pre-auth version.
+// This will later be replaced by the authenticated database credit account.
+let demoCredits = 20;
+
 app.use(helmet());
 
 app.use(
@@ -50,9 +62,18 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+app.get("/api/credits", (req, res) => {
+  res.json({
+    success: true,
+    credits: demoCredits,
+    costs: CREDIT_COSTS,
+    mode: "demo",
+  });
+});
+
 app.post("/api/chat", async (req, res) => {
   try {
-    const { messages } = req.body;
+    const { messages, operation = "chat" } = req.body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({
@@ -61,10 +82,22 @@ app.post("/api/chat", async (req, res) => {
       });
     }
 
+    const cost = CREDIT_COSTS[operation] ?? CREDIT_COSTS.chat;
+
+    if (demoCredits < cost) {
+      return res.status(402).json({
+        success: false,
+        error: "You have no credit remaining, add credit to continue.",
+        credits: demoCredits,
+        required: cost,
+      });
+    }
+
     if (!process.env.OPENAI_API_KEY) {
       return res.status(503).json({
         success: false,
         error: "OPENAI_API_KEY is not configured.",
+        credits: demoCredits,
       });
     }
 
@@ -85,17 +118,24 @@ app.post("/api/chat", async (req, res) => {
     if (!response.ok) {
       console.error("OpenAI API error:", data);
 
+      // Credit is NOT deducted when the AI request fails.
       return res.status(response.status).json({
         success: false,
         error: data?.error?.message || "OpenAI API request failed.",
+        credits: demoCredits,
       });
     }
+
+    // Deduct only after a successful AI response.
+    demoCredits -= cost;
 
     return res.json({
       success: true,
       model: OPENAI_MODEL,
       response: data.output_text || "",
       responseId: data.id || null,
+      credits: demoCredits,
+      creditsUsed: cost,
     });
   } catch (error) {
     console.error("Chat API error:", error);
@@ -103,6 +143,7 @@ app.post("/api/chat", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Internal server error.",
+      credits: demoCredits,
     });
   }
 });
