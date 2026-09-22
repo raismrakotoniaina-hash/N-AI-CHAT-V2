@@ -14,29 +14,44 @@ function Sidebar({
   open,
   onClose,
   onNewChat,
+  onNavigate,
 }) {
   const menuItems = [
     {
       icon: MessageSquare,
       label: "Chats",
+      page: "chat",
     },
     {
       icon: Image,
       label: "Image Studio",
+      page: "image",
     },
     {
       icon: Search,
       label: "Recherche IA",
+      page: "research",
     },
     {
       icon: Brain,
       label: "Mémoire",
+      page: "memory",
     },
   ];
 
   const handleNewChat = () => {
     if (onNewChat) {
       onNewChat();
+    }
+  };
+
+  const handleNavigate = (page) => {
+    if (onNavigate) {
+      onNavigate(page);
+    }
+
+    if (onClose) {
+      onClose();
     }
   };
 
@@ -89,6 +104,9 @@ function Sidebar({
                 className="nav-item"
                 key={item.label}
                 type="button"
+                onClick={() =>
+                  handleNavigate(item.page)
+                }
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -101,12 +119,21 @@ function Sidebar({
           <button
             className="nav-item"
             type="button"
+            onClick={() =>
+              handleNavigate("settings")
+            }
           >
             <Settings size={18} />
             <span>Paramètres</span>
           </button>
 
-          <div className="user-card">
+          <button
+            className="user-card"
+            type="button"
+            onClick={() =>
+              handleNavigate("profile")
+            }
+          >
             <div className="user-avatar">
               <User size={17} />
             </div>
@@ -119,7 +146,7 @@ function Sidebar({
             </div>
 
             <ChevronDown size={16} />
-          </div>
+          </button>
         </div>
       </aside>
 
