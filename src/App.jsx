@@ -36,6 +36,26 @@ function App() {
     catch (error) { console.error("Erreur sauvegarde historique:", error); }
   }, [messages]);
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/auth/me", { credentials: "include" });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.user) {
+            setUser(data.user);
+            setCredits(data.user.credits ?? 0);
+          }
+        }
+      } catch (error) {
+        console.error("Auth check error:", error);
+      } finally {
+        setAuthChecking(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
   const handleAuthenticated = (account) => { setUser(account); setCredits(account.credits); setCurrentPage("chat"); };
 
   const handleLogout = async () => {
@@ -201,6 +221,14 @@ function App() {
       </main>
     );
   };
+
+  if (authChecking) {
+    return <div className="auth-loading">N-AI Chat V2...</div>;
+  }
+
+  if (!user) {
+    return <AuthPage onAuthenticated={handleAuthenticated} />;
+  }
 
   return (
     <div className="app">
