@@ -212,7 +212,7 @@ app.post("/api/chat", async (req, res) => {
     return res.status(500).json({
       success: false,
       error: "Internal server error.",
-      credits: demoCredits,
+      credits: user?.credits ?? 0,
     });
   }
 });
