@@ -1,9 +1,11 @@
 import dotenv from "dotenv";
+import fs from "fs";
+import crypto from "crypto";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import { registerUser, loginUser, getUserByToken, attachSession, removeSession, spendCredits } from "./authStore.js";
+import { registerUser, loginUser, getUserByToken, getUserById, attachSession, removeSession, spendCredits, addCredits } from "./authStore.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -11,11 +13,62 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.6-luna";
 const DEMO_MODE = String(process.env.DEMO_MODE || "").toLowerCase() === "true" || !process.env.OPENAI_API_KEY;
+const PAPI_API_KEY = process.env.PAPI_API_KEY || "";
+const PAPI_WEBHOOK_SECRET = process.env.PAPI_WEBHOOK_SECRET || "";
+const PUBLIC_APP_URL = (process.env.PUBLIC_APP_URL || "").replace(/\/$/, "");
 
 const CREDIT_COSTS = { chat: 1, coding: 8, research: 8, image: 50 };
 
 app.use(helmet());
 app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173", credentials: true }));
+app.post("/api/payments/papi/notify", express.raw({ type: "application/json" }), (req, res) => {
+  try {
+    if (!PAPI_WEBHOOK_SECRET) return res.status(503).json({ success: false, error: "PAPI webhook is not configured." });
+    const signature = req.get("X-Papi-Signature") || "";
+    const parts = {};
+    for (const item of signature.split(",")) {
+      const [key, ...rest] = item.trim().split("=");
+      if (key && rest.length) parts[key] = rest.join("=");
+    }
+    const timestamp = parts.t;
+    const received = parts.v1;
+    if (!/^\d+$/.test(timestamp || "") || !/^[0-9a-f]{64}$/.test(received || "")) {
+      return res.status(401).end();
+    }
+    if (Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp)) > 300) return res.status(401).end();
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from("");
+    const expected = crypto.createHmac("sha256", PAPI_WEBHOOK_SECRET).update(`${timestamp}.`).update(rawBody).digest("hex");
+    const a = Buffer.from(expected, "hex");
+    const b = Buffer.from(received, "hex");
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return res.status(401).end();
+
+    const notification = JSON.parse(rawBody.toString("utf8"));
+    const reference = String(notification.merchantPaymentReference || "");
+    const token = String(notification.notificationToken || "");
+    const payments = readPayments();
+    const payment = payments.find((item) => item.reference === reference);
+    if (!payment || !payment.notificationToken || payment.notificationToken !== token) return res.status(400).end();
+
+    if (notification.paymentStatus === "SUCCESS" && payment.status !== "paid") {
+      const updated = addCredits(payment.userId, payment.credits, "papi_payment");
+      if (updated) {
+        payment.status = "paid";
+        payment.paidAt = new Date().toISOString();
+        payment.paymentReference = notification.paymentReference || null;
+        payment.paymentMethod = notification.paymentMethod || null;
+        writePayments(payments);
+      }
+    } else if (notification.paymentStatus === "FAILED") {
+      payment.status = "failed";
+      writePayments(payments);
+    }
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("PAPI notification error:", error);
+    return res.status(400).end();
+  }
+});
+
 app.use(express.json({ limit: "10mb" }));
 
 const apiLimiter = rateLimit({
@@ -90,6 +143,91 @@ app.get("/api/credits", (req, res) => {
   const user = requireUser(req, res);
   if (!user) return;
   res.json({ success: true, credits: user.credits, costs: CREDIT_COSTS, mode: "account" });
+});
+
+const PAYMENTS_FILE = new URL("./data/payments.json", import.meta.url);
+function readPayments() {
+  try {
+    if (!fs.existsSync(PAYMENTS_FILE)) fs.writeFileSync(PAYMENTS_FILE, "[]", "utf8");
+    return JSON.parse(fs.readFileSync(PAYMENTS_FILE, "utf8"));
+  } catch {
+    return [];
+  }
+}
+function writePayments(payments) {
+  fs.writeFileSync(PAYMENTS_FILE, JSON.stringify(payments, null, 2), "utf8");
+}
+
+app.post("/api/payments/create", async (req, res) => {
+  try {
+    const user = requireUser(req, res);
+    if (!user) return;
+    const { planId, provider } = req.body || {};
+    const plans = {
+      basic: { price: 9900, credits: 300 },
+      premium: { price: 21900, credits: 1200 },
+      pro: { price: 49900, credits: 3500 },
+    };
+    const plan = plans[planId];
+    if (!plan) return res.status(400).json({ success: false, error: "Plan invalide." });
+    if (!PAPI_API_KEY) return res.status(503).json({ success: false, error: "PAPI_API_KEY tsy mbola voapetraka ao amin'ny serveur." });
+    if (!PUBLIC_APP_URL) return res.status(503).json({ success: false, error: "PUBLIC_APP_URL tsy mbola voapetraka." });
+
+    const reference = `NAI-${user.id.slice(0, 8)}-${Date.now()}`;
+    const payload = {
+      amount: plan.price,
+      clientName: user.name,
+      reference,
+      description: `N-AI Chat V2 - ${planId} - ${plan.credits} credits`,
+      successUrl: `${PUBLIC_APP_URL}/?payment=success&reference=${encodeURIComponent(reference)}`,
+      failureUrl: `${PUBLIC_APP_URL}/?payment=failure&reference=${encodeURIComponent(reference)}`,
+      notificationUrl: `${PUBLIC_APP_URL}/api/payments/papi/notify`,
+      validDuration: 2,
+      ...(provider ? { provider } : {}),
+      payerEmail: user.email,
+    };
+
+    const response = await fetch("https://app.papi.mg/engine/api/payment-links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Token: PAPI_API_KEY },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      console.error("PAPI create payment error:", data);
+      return res.status(response.status).json({ success: false, error: data?.message || data?.error || "PAPI payment creation failed." });
+    }
+
+    const result = data?.data || data;
+    const paymentLink = result.paymentLink;
+    const notificationToken = result.notificationToken;
+    if (!paymentLink || !notificationToken) return res.status(502).json({ success: false, error: "PAPI payment link response is incomplete." });
+
+    const payments = readPayments();
+    payments.push({
+      reference,
+      userId: user.id,
+      planId,
+      amount: plan.price,
+      credits: plan.credits,
+      status: "pending",
+      notificationToken,
+      createdAt: new Date().toISOString(),
+    });
+    writePayments(payments);
+    return res.json({ success: true, paymentLink, reference, status: "pending" });
+  } catch (error) {
+    console.error("Payment create error:", error);
+    return res.status(500).json({ success: false, error: "Payment service error." });
+  }
+});
+
+app.get("/api/payments/:reference", (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  const payment = readPayments().find((item) => item.reference === req.params.reference && item.userId === user.id);
+  if (!payment) return res.status(404).json({ success: false, error: "Payment not found." });
+  res.json({ success: true, payment: { reference: payment.reference, planId: payment.planId, amount: payment.amount, credits: payment.credits, status: payment.status, createdAt: payment.createdAt, paidAt: payment.paidAt || null } });
 });
 
 function buildDemoResponse(messages) {
