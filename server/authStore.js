@@ -137,3 +137,20 @@ export function spendCredits(userId, amount, reason) {
   writeUsers(users);
   return publicUser(user);
 }
+export function addCredits(userId, amount, reason = "purchase") {
+  const users = readUsers();
+  const user = users.find((u) => u.id === userId);
+  if (!user || !Number.isFinite(amount) || amount <= 0) return null;
+
+  user.credits = Number(user.credits || 0) + amount;
+  user.transactions = Array.isArray(user.transactions) ? user.transactions : [];
+  user.transactions.push({
+    id: crypto.randomUUID(),
+    type: "grant",
+    amount,
+    reason,
+    createdAt: new Date().toISOString(),
+  });
+  writeUsers(users);
+  return publicUser(user);
+}
