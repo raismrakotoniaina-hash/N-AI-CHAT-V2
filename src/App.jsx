@@ -20,6 +20,8 @@ function App() {
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [credits, setCredits] = useState(0);
+  const [paymentLoading, setPaymentLoading] = useState("");
+  const [paymentError, setPaymentError] = useState("");
 
   useEffect(() => {
     try {
@@ -68,6 +70,27 @@ function App() {
 
   const handleNavigate = (page) => { setCurrentPage(page); setSidebarOpen(false); };
 
+  const handlePurchase = async (planId) => {
+    if (planId === "free" || paymentLoading) return;
+    setPaymentError("");
+    setPaymentLoading(planId);
+    try {
+      const response = await fetch("/api/payments/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ planId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) throw new Error(data.error || "Tsy afaka namorona paiement.");
+      window.location.href = data.paymentLink;
+    } catch (error) {
+      setPaymentError(error.message);
+    } finally {
+      setPaymentLoading("");
+    }
+  };
+
   const handleSend = async () => {
     const text = message.trim();
     if (!text || loading) return;
@@ -110,6 +133,7 @@ function App() {
     if (action === "image") setCurrentPage("image");
     if (action === "research") setCurrentPage("research");
   };
+  };
 
   const handleNewChat = () => {
     setMessages([]);
@@ -134,12 +158,13 @@ function App() {
             <div className="plan-price">{plan.price === 0 ? t("free") : formatMGA(plan.price)}{plan.price > 0 && <small>{t("month")}</small>}</div>
             <div className="plan-credits">{plan.credits.toLocaleString("fr-FR")} {t("credits")}</div>
             <ul>{plan.features.map((feature) => <li key={feature}>✓ {feature}</li>)}</ul>
-            <button className="feature-button" type="button" onClick={() => handleNavigate("profile")}>
-              {plan.id === "free" ? t("currentPlan") : t("subscribe")}
+            <button className="feature-button" type="button" disabled={plan.id !== "free" && paymentLoading === plan.id} onClick={() => plan.id === "free" ? handleNavigate("profile") : handlePurchase(plan.id)}>
+              {plan.id === "free" ? t("currentPlan") : paymentLoading === plan.id ? "Miandry..." : "Hividy amin'ny Papi"}
             </button>
           </article>
         ))}
       </div>
+      {paymentError && <div className="auth-error" style={{ marginTop: 16 }}>{paymentError}</div>}
     </main>
   );
 
