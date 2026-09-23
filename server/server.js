@@ -183,6 +183,7 @@ app.post("/api/payments/create", async (req, res) => {
       amount: plan.price,
       clientName: user.name,
       reference,
+      title: `N-AI Chat V2 - ${planId}`,
       description: `N-AI Chat V2 - ${planId} - ${plan.credits} credits`,
       successUrl: `${PUBLIC_FRONTEND_URL}/?payment=success&reference=${encodeURIComponent(reference)}`,
       failureUrl: `${PUBLIC_FRONTEND_URL}/?payment=failure&reference=${encodeURIComponent(reference)}`,
