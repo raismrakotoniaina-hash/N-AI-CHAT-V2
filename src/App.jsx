@@ -23,7 +23,7 @@ function App() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(user?.id ? `${STORAGE_KEY}-${user.id}` : STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) setMessages(parsed);
@@ -32,9 +32,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); }
+    try { localStorage.setItem(user?.id ? `${STORAGE_KEY}-${user.id}` : STORAGE_KEY, JSON.stringify(messages)); }
     catch (error) { console.error("Erreur sauvegarde historique:", error); }
-  }, [messages]);
+  }, [messages, user?.id]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -56,7 +56,7 @@ function App() {
     checkAuth();
   }, []);
 
-  const handleAuthenticated = (account) => { setUser(account); setCredits(account.credits); setCurrentPage("chat"); };
+  const handleAuthenticated = (account) => { setUser(account); setCredits(account.credits ?? 0); setCurrentPage("chat"); };
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
@@ -204,8 +204,8 @@ function App() {
       <main className="feature-page">
         <div className="feature-header"><div className="feature-icon">👤</div><div><h1>{t("profile")}</h1><p>{t("accountText")}</p></div></div>
         <div className="feature-card profile-card">
-          <div className="large-avatar">👤</div><h2>{t("user")}</h2><span className="plan-badge">{t("freePlan")}</span>
-          <div className="profile-info"><div><strong>{t("balance")}</strong><span>{t("balanceDesc")}</span></div></div>
+          <div className="large-avatar">👤</div><h2>{user?.name || t("user")}</h2><span className="plan-badge">{t("freePlan")}</span>
+          <div className="profile-info"><div><strong>{user?.email || ""}</strong><span>{credits} {t("credits")}</span></div></div>
           <button className="feature-button" type="button" onClick={() => setCurrentPage("plans")}>{t("plans")}</button>
           <button className="secondary-button" type="button" onClick={handleLogout}>Déconnexion</button>
         </div>
