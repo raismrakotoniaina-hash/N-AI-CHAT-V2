@@ -181,9 +181,9 @@ app.post("/api/payments/create", async (req, res) => {
     const reference = `NAI-${user.id.slice(0, 8)}-${Date.now()}`;
     const payload = {
       amount: plan.price,
+      currency: "MGA",
       clientName: user.name,
       reference,
-      title: `N-AI Chat V2 - ${planId}`,
       description: `N-AI Chat V2 - ${planId} - ${plan.credits} credits`,
       successUrl: `${PUBLIC_FRONTEND_URL}/?payment=success&reference=${encodeURIComponent(reference)}`,
       failureUrl: `${PUBLIC_FRONTEND_URL}/?payment=failure&reference=${encodeURIComponent(reference)}`,
@@ -201,7 +201,7 @@ app.post("/api/payments/create", async (req, res) => {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       console.error("PAPI create payment error:", data);
-      return res.status(response.status).json({ success: false, error: data?.message || data?.error || "PAPI payment creation failed." });
+      return res.status(response.status).json({ success: false, error: data?.error?.message || data?.message || data?.error || "PAPI payment creation failed." });
     }
 
     const result = data?.data || data;
