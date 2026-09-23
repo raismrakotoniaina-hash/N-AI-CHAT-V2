@@ -15,12 +15,18 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.6-luna";
 const DEMO_MODE = String(process.env.DEMO_MODE || "").toLowerCase() === "true" || !process.env.OPENAI_API_KEY;
 const PAPI_API_KEY = process.env.PAPI_API_KEY || "";
 const PAPI_WEBHOOK_SECRET = process.env.PAPI_WEBHOOK_SECRET || "";
-const PUBLIC_APP_URL = (process.env.PUBLIC_APP_URL || "").replace(/\/$/, "");
+const PUBLIC_FRONTEND_URL = (process.env.PUBLIC_FRONTEND_URL || process.env.PUBLIC_APP_URL || "").replace(/\/$/, "");
+const PUBLIC_API_URL = (process.env.PUBLIC_API_URL || process.env.PUBLIC_APP_URL || "").replace(/\/$/, "");
 
 const CREDIT_COSTS = { chat: 1, coding: 8, research: 8, image: 50 };
 
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173", credentials: true }));
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:5173",
+  PUBLIC_FRONTEND_URL,
+].filter(Boolean);
+app.use(cors({ origin: allowedOrigins, credentials: true }));
+
 app.post("/api/payments/papi/notify", express.raw({ type: "application/json" }), (req, res) => {
   try {
     if (!PAPI_WEBHOOK_SECRET) return res.status(503).json({ success: false, error: "PAPI webhook is not configured." });
@@ -32,9 +38,7 @@ app.post("/api/payments/papi/notify", express.raw({ type: "application/json" }),
     }
     const timestamp = parts.t;
     const received = parts.v1;
-    if (!/^\d+$/.test(timestamp || "") || !/^[0-9a-f]{64}$/.test(received || "")) {
-      return res.status(401).end();
-    }
+    if (!/^\d+$/.test(timestamp || "") || !/^[0-9a-f]{64}$/.test(received || "")) return res.status(401).end();
     if (Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp)) > 300) return res.status(401).end();
     const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from("");
     const expected = crypto.createHmac("sha256", PAPI_WEBHOOK_SECRET).update(`${timestamp}.`).update(rawBody).digest("hex");
@@ -171,7 +175,8 @@ app.post("/api/payments/create", async (req, res) => {
     const plan = plans[planId];
     if (!plan) return res.status(400).json({ success: false, error: "Plan invalide." });
     if (!PAPI_API_KEY) return res.status(503).json({ success: false, error: "PAPI_API_KEY tsy mbola voapetraka ao amin'ny serveur." });
-    if (!PUBLIC_APP_URL) return res.status(503).json({ success: false, error: "PUBLIC_APP_URL tsy mbola voapetraka." });
+    if (!PUBLIC_FRONTEND_URL) return res.status(503).json({ success: false, error: "PUBLIC_FRONTEND_URL tsy mbola voapetraka." });
+    if (!PUBLIC_API_URL) return res.status(503).json({ success: false, error: "PUBLIC_API_URL tsy mbola voapetraka." });
 
     const reference = `NAI-${user.id.slice(0, 8)}-${Date.now()}`;
     const payload = {
@@ -179,9 +184,9 @@ app.post("/api/payments/create", async (req, res) => {
       clientName: user.name,
       reference,
       description: `N-AI Chat V2 - ${planId} - ${plan.credits} credits`,
-      successUrl: `${PUBLIC_APP_URL}/?payment=success&reference=${encodeURIComponent(reference)}`,
-      failureUrl: `${PUBLIC_APP_URL}/?payment=failure&reference=${encodeURIComponent(reference)}`,
-      notificationUrl: `${PUBLIC_APP_URL}/api/payments/papi/notify`,
+      successUrl: `${PUBLIC_FRONTEND_URL}/?payment=success&reference=${encodeURIComponent(reference)}`,
+      failureUrl: `${PUBLIC_FRONTEND_URL}/?payment=failure&reference=${encodeURIComponent(reference)}`,
+      notificationUrl: `${PUBLIC_API_URL}/api/payments/papi/notify`,
       validDuration: 2,
       ...(provider ? { provider } : {}),
       payerEmail: user.email,
