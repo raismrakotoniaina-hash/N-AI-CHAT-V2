@@ -5,7 +5,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
-import { registerUser, loginUser, getUserByToken, getUserById, attachSession, removeSession, spendCredits, addCredits } from "./authStore.js";
+import { registerUser, loginUser, getUserByToken, getUserById, attachSession, removeSession, spendCredits, addCredits, setUserPlan } from "./authStore.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -56,6 +56,7 @@ app.post("/api/payments/papi/notify", express.raw({ type: "application/json" }),
     if (notification.paymentStatus === "SUCCESS" && payment.status !== "paid") {
       const updated = addCredits(payment.userId, payment.credits, "papi_payment");
       if (updated) {
+        setUserPlan(payment.userId, payment.planId);
         payment.status = "paid";
         payment.paidAt = new Date().toISOString();
         payment.paymentReference = notification.paymentReference || null;
