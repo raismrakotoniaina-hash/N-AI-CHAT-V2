@@ -65,7 +65,7 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch(apiUrl("/api/auth/me", {
+        const response = await fetch(apiUrl("/api/auth/me"), {
           credentials: "include",
         });
 
@@ -95,7 +95,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch(apiUrl("/api/auth/logout", {
+      await fetch(apiUrl("/api/auth/logout"), {
         method: "POST",
         credentials: "include",
       });
@@ -175,7 +175,7 @@ function App() {
     setPaymentLoading(planId);
 
     try {
-      const response = await fetch(apiUrl("/api/payments/create", {
+      const response = await fetch(apiUrl("/api/payments/create"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -229,7 +229,7 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await fetch(apiUrl("/api/chat", {
+      const response = await fetch(apiUrl("/api/chat"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
