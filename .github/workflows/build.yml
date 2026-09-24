@@ -1,4 +1,4 @@
-name: Build
+name: Build and API Tests
 
 on:
   push:
@@ -16,7 +16,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: npm install --no-audit --no-fund
       - name: Build frontend
         run: npm run build
+      - name: Install backend dependencies
+        working-directory: server
+        run: npm install --no-audit --no-fund
+      - name: Test backend API in Demo Mode
+        run: node server/smoke-test.mjs
