@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
+import fs from "node:fs";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 
 const port = 39001;
+const webhookSecret = "local-ci-test-webhook-secret";
+const paymentsFile = new URL("./data/payments.json", import.meta.url);
+const originalPayments = fs.existsSync(paymentsFile) ? fs.readFileSync(paymentsFile, "utf8") : null;
 const base = `http://127.0.0.1:${port}`;
 const child = spawn(process.execPath, ["server.js"], {
   cwd: new URL(".", import.meta.url),
-  env: { ...process.env, PORT: String(port), DEMO_MODE: "true", OPENAI_API_KEY: "" },
+  env: { ...process.env, PORT: String(port), DEMO_MODE: "true", OPENAI_API_KEY: "", PAPI_WEBHOOK_SECRET: webhookSecret, PAPI_API_KEY: "", PUBLIC_API_URL: "", PUBLIC_FRONTEND_URL: "" },
   stdio: ["ignore", "pipe", "pipe"],
 });
 let output = "";
@@ -110,6 +115,51 @@ try {
   assert.equal(afterFakePayment.body.credits, 19);
   console.log("PASS unsigned payment notification rejected");
 
+  // Simulate PAPI's signed callback locally: no real charge or external API key.
+  const reference = "CI-PAPI-" + Date.now();
+  const notificationToken = crypto.randomBytes(24).toString("hex");
+  const fixture = {
+    reference, userId: registration.body.user.id, planId: "basic",
+    amount: 9900, credits: 300, status: "pending",
+    notificationToken, createdAt: new Date().toISOString(),
+  };
+  const savedPayments = JSON.parse(fs.readFileSync(paymentsFile, "utf8"));
+  fs.writeFileSync(paymentsFile, JSON.stringify([...savedPayments, fixture]), "utf8");
+  const notification = { merchantPaymentReference: reference, notificationToken, paymentStatus: "SUCCESS", paymentReference: "CI-MOCK-PAID" };
+  async function signedNotify(payload, secret = webhookSecret) {
+    const body = JSON.stringify(payload);
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = crypto.createHmac("sha256", secret).update(timestamp + "." + body).digest("hex");
+    return fetch(base + "/api/payments/papi/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Papi-Signature": "t=" + timestamp + ",v1=" + signature },
+      body,
+    });
+  }
+  const badSignature = await signedNotify(notification, "wrong-secret");
+  assert.equal(badSignature.status, 401);
+  const wrongToken = await signedNotify({ ...notification, notificationToken: "wrong-token" });
+  assert.equal(wrongToken.status, 400);
+  const beforePaid = await request("/api/credits", {}, cookie);
+  assert.equal(beforePaid.body.credits, 19);
+  console.log("PASS invalid PAPI signature and token rejected");
+
+  const paidCallback = await signedNotify(notification);
+  assert.equal(paidCallback.status, 200);
+  const paid = await request("/api/payments/" + reference, {}, cookie);
+  assert.equal(paid.body.payment.status, "paid");
+  const afterPaid = await request("/api/credits", {}, cookie);
+  assert.equal(afterPaid.body.credits, 319);
+  const accountAfterPaid = await request("/api/auth/me", {}, cookie);
+  assert.equal(accountAfterPaid.body.user.plan, "basic");
+  const duplicate = await signedNotify(notification);
+  assert.equal(duplicate.status, 200);
+  const afterDuplicate = await request("/api/credits", {}, cookie);
+  assert.equal(afterDuplicate.body.credits, 319);
+  const otherPayment = await request("/api/payments/" + reference, {}, other.cookie);
+  assert.equal(otherPayment.status, 404);
+  console.log("PASS signed PAPI success adds 300 credits once, upgrades plan, isolates payment");
+
   for (let i = 0; i < 2; i++) {
     const coding = await request("/api/chat", {
       method: "POST",
@@ -123,7 +173,7 @@ try {
   }, cookie);
   assert.equal(insufficient.status, 402);
   const balance = await request("/api/credits", {}, cookie);
-  assert.equal(balance.body.credits, 3);
+  assert.equal(balance.body.credits, 303);
   console.log("PASS insufficient credits do not deduct balance");
 
   const logout = await request("/api/auth/logout", { method: "POST" }, cookie);
@@ -138,4 +188,7 @@ try {
   process.exitCode = 1;
 } finally {
   child.kill("SIGTERM");
+  if (originalPayments === null) {
+    if (fs.existsSync(paymentsFile)) fs.unlinkSync(paymentsFile);
+  } else fs.writeFileSync(paymentsFile, originalPayments, "utf8");
 }
