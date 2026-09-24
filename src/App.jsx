@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { apiUrl } from "./config/api";
 import Sidebar from "./components/layout/Sidebar";
 import Topbar from "./components/layout/Topbar";
 import WelcomeScreen from "./components/chat/WelcomeScreen";
@@ -9,7 +10,6 @@ import { LANGUAGES, useTranslation } from "./services/i18n";
 import { PLANS, formatMGA } from "./config/plans";
 
 const STORAGE_KEY = "n-ai-chat-v2-messages";
-import { apiUrl } from "./config/api";
 
 function App() {
   const { language, t, setLanguage } = useTranslation();
