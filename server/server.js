@@ -178,6 +178,7 @@ app.post("/api/payments/create", async (req, res) => {
     if (!PAPI_API_KEY) return res.status(503).json({ success: false, error: "PAPI_API_KEY tsy mbola voapetraka ao amin'ny serveur." });
     if (!PUBLIC_FRONTEND_URL) return res.status(503).json({ success: false, error: "PUBLIC_FRONTEND_URL tsy mbola voapetraka." });
     if (!PUBLIC_API_URL) return res.status(503).json({ success: false, error: "PUBLIC_API_URL tsy mbola voapetraka." });
+    if (!PAPI_WEBHOOK_SECRET) return res.status(503).json({ success: false, error: "PAPI_WEBHOOK_SECRET tsy mbola voapetraka ao amin'ny serveur." });
 
     const reference = `NAI-${user.id.slice(0, 8)}-${Date.now()}`;
     const payload = {
