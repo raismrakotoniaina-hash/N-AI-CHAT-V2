@@ -9,12 +9,7 @@ import { LANGUAGES, useTranslation } from "./services/i18n";
 import { PLANS, formatMGA } from "./config/plans";
 
 const STORAGE_KEY = "n-ai-chat-v2-messages";
-const API_BASE_URL = (
-  import.meta.env.VITE_API_URL ||
-  "https://777w6r9766g7cxjr-3001.app.github.dev"
-).replace(/\/$/, "");
-
-const apiUrl = (path) => `${API_BASE_URL}${path}`;
+import { apiUrl } from "./config/api";
 
 function App() {
   const { language, t, setLanguage } = useTranslation();
