@@ -79,6 +79,53 @@ try {
   assert.equal(payment.status, 503);
   console.log("PASS PAPI unconfigured safety check");
 
+  const unauthenticated = await request("/api/credits");
+  assert.equal(unauthenticated.status, 401);
+  const unauthenticatedChat = await request("/api/chat", {
+    method: "POST",
+    body: JSON.stringify({ messages: [{ role: "user", content: "Test" }] }),
+  });
+  assert.equal(unauthenticatedChat.status, 401);
+  console.log("PASS protected API routes");
+
+  const otherEmail = `other-${Date.now()}-${Math.random().toString(36).slice(2)}@example.test`;
+  const other = await request("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name: "Other Tester", email: otherEmail, password }),
+  });
+  assert.equal(other.status, 201);
+  const otherAccount = await request("/api/auth/me", {}, other.cookie);
+  assert.equal(otherAccount.body.user.email, otherEmail);
+  const originalAccount = await request("/api/auth/me", {}, cookie);
+  assert.equal(originalAccount.body.user.email, email);
+  console.log("PASS account session isolation");
+
+  const fakeWebhook = await fetch(base + "/api/payments/papi/notify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Papi-Signature": "invalid" },
+    body: JSON.stringify({ paymentStatus: "SUCCESS" }),
+  });
+  assert.notEqual(fakeWebhook.status, 200);
+  const afterFakePayment = await request("/api/credits", {}, cookie);
+  assert.equal(afterFakePayment.body.credits, 19);
+  console.log("PASS unsigned payment notification rejected");
+
+  for (let i = 0; i < 2; i++) {
+    const coding = await request("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ messages: [{ role: "user", content: "Code test" }], operation: "coding" }),
+    }, cookie);
+    assert.equal(coding.status, 200);
+  }
+  const insufficient = await request("/api/chat", {
+    method: "POST",
+    body: JSON.stringify({ messages: [{ role: "user", content: "Code test" }], operation: "coding" }),
+  }, cookie);
+  assert.equal(insufficient.status, 402);
+  const balance = await request("/api/credits", {}, cookie);
+  assert.equal(balance.body.credits, 3);
+  console.log("PASS insufficient credits do not deduct balance");
+
   const logout = await request("/api/auth/logout", { method: "POST" }, cookie);
   assert.equal(logout.status, 200);
   const afterLogout = await request("/api/auth/me", {}, cookie);
