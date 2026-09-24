@@ -137,6 +137,17 @@ export function spendCredits(userId, amount, reason) {
   writeUsers(users);
   return publicUser(user);
 }
+export function setUserPlan(userId, plan) {
+  const allowed = ["free", "basic", "premium", "pro"];
+  if (!allowed.includes(plan)) return null;
+  const users = readUsers();
+  const user = users.find((u) => u.id === userId);
+  if (!user) return null;
+  user.plan = plan;
+  writeUsers(users);
+  return publicUser(user);
+}
+
 export function addCredits(userId, amount, reason = "purchase") {
   const users = readUsers();
   const user = users.find((u) => u.id === userId);
