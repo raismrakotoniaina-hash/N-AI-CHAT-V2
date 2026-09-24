@@ -9,6 +9,12 @@ import { LANGUAGES, useTranslation } from "./services/i18n";
 import { PLANS, formatMGA } from "./config/plans";
 
 const STORAGE_KEY = "n-ai-chat-v2-messages";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  "https://777w6r9766g7cxjr-3001.app.github.dev"
+).replace(/\/$/, "");
+
+const apiUrl = (path) => `${API_BASE_URL}${path}`;
 
 function App() {
   const { language, t, setLanguage } = useTranslation();
@@ -59,7 +65,7 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("/api/auth/me", {
+        const response = await fetch(apiUrl("/api/auth/me", {
           credentials: "include",
         });
 
@@ -89,7 +95,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", {
+      await fetch(apiUrl("/api/auth/logout", {
         method: "POST",
         credentials: "include",
       });
@@ -108,6 +114,58 @@ function App() {
     setSidebarOpen(false);
   };
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get("payment");
+    const reference = params.get("reference");
+
+    if (!paymentStatus) return;
+
+    const refreshAccount = async () => {
+      try {
+        const response = await fetch(apiUrl("/api/auth/me"), {
+          credentials: "include",
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.user) {
+          setUser(data.user);
+          setCredits(data.user.credits ?? 0);
+        }
+      } catch (error) {
+        console.error("Payment account refresh error:", error);
+      }
+    };
+
+    refreshAccount();
+
+    if (paymentStatus === "success" && reference) {
+      const timer = window.setInterval(async () => {
+        try {
+          const response = await fetch(
+            apiUrl(`/api/payments/${encodeURIComponent(reference)}`),
+            { credentials: "include" }
+          );
+          if (!response.ok) return;
+
+          const data = await response.json();
+          if (data?.payment?.status === "paid") {
+            await refreshAccount();
+            window.clearInterval(timer);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (error) {
+          console.error("Payment status error:", error);
+        }
+      }, 2500);
+
+      window.setTimeout(() => window.clearInterval(timer), 30000);
+      return () => window.clearInterval(timer);
+    }
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }, []);
+
   const handlePurchase = async (planId) => {
     if (planId === "free" || paymentLoading) {
       return;
@@ -117,7 +175,7 @@ function App() {
     setPaymentLoading(planId);
 
     try {
-      const response = await fetch("/api/payments/create", {
+      const response = await fetch(apiUrl("/api/payments/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -171,7 +229,7 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch(apiUrl("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -549,7 +607,7 @@ function App() {
             <h2>{user?.name || t("user")}</h2>
 
             <span className="plan-badge">
-              {t("freePlan")}
+              {user?.plan === "free" ? t("freePlan") : (user?.plan || "free").toUpperCase()}
             </span>
 
             <div className="profile-info">
