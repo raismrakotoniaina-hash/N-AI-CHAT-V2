@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiUrl } from "../../config/api";
 
 function AuthPage({ onAuthenticated }) {
   const [mode, setMode] = useState("login");
@@ -15,7 +16,7 @@ function AuthPage({ onAuthenticated }) {
     try {
       const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
       const body = mode === "login" ? { email, password } : { name, email, password };
-      const response = await fetch(endpoint, {
+      const response = await fetch(apiUrl(endpoint), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
