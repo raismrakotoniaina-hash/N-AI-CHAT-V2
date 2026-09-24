@@ -115,6 +115,22 @@ try {
   assert.equal(afterFakePayment.body.credits, 19);
   console.log("PASS unsigned payment notification rejected");
 
+  for (let i = 0; i < 2; i++) {
+    const coding = await request("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ messages: [{ role: "user", content: "Code test" }], operation: "coding" }),
+    }, cookie);
+    assert.equal(coding.status, 200);
+  }
+  const insufficient = await request("/api/chat", {
+    method: "POST",
+    body: JSON.stringify({ messages: [{ role: "user", content: "Code test" }], operation: "coding" }),
+  }, cookie);
+  assert.equal(insufficient.status, 402);
+  const balance = await request("/api/credits", {}, cookie);
+  assert.equal(balance.body.credits, 3);
+  console.log("PASS insufficient credits do not deduct balance");
+
   // Simulate PAPI's signed callback locally: no real charge or external API key.
   const reference = "CI-PAPI-" + Date.now();
   const notificationToken = crypto.randomBytes(24).toString("hex");
@@ -141,7 +157,7 @@ try {
   const wrongToken = await signedNotify({ ...notification, notificationToken: "wrong-token" });
   assert.equal(wrongToken.status, 400);
   const beforePaid = await request("/api/credits", {}, cookie);
-  assert.equal(beforePaid.body.credits, 19);
+  assert.equal(beforePaid.body.credits, 3);
   console.log("PASS invalid PAPI signature and token rejected");
 
   const paidCallback = await signedNotify(notification);
@@ -149,32 +165,16 @@ try {
   const paid = await request("/api/payments/" + reference, {}, cookie);
   assert.equal(paid.body.payment.status, "paid");
   const afterPaid = await request("/api/credits", {}, cookie);
-  assert.equal(afterPaid.body.credits, 319);
+  assert.equal(afterPaid.body.credits, 303);
   const accountAfterPaid = await request("/api/auth/me", {}, cookie);
   assert.equal(accountAfterPaid.body.user.plan, "basic");
   const duplicate = await signedNotify(notification);
   assert.equal(duplicate.status, 200);
   const afterDuplicate = await request("/api/credits", {}, cookie);
-  assert.equal(afterDuplicate.body.credits, 319);
+  assert.equal(afterDuplicate.body.credits, 303);
   const otherPayment = await request("/api/payments/" + reference, {}, other.cookie);
   assert.equal(otherPayment.status, 404);
   console.log("PASS signed PAPI success adds 300 credits once, upgrades plan, isolates payment");
-
-  for (let i = 0; i < 2; i++) {
-    const coding = await request("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({ messages: [{ role: "user", content: "Code test" }], operation: "coding" }),
-    }, cookie);
-    assert.equal(coding.status, 200);
-  }
-  const insufficient = await request("/api/chat", {
-    method: "POST",
-    body: JSON.stringify({ messages: [{ role: "user", content: "Code test" }], operation: "coding" }),
-  }, cookie);
-  assert.equal(insufficient.status, 402);
-  const balance = await request("/api/credits", {}, cookie);
-  assert.equal(balance.body.credits, 303);
-  console.log("PASS insufficient credits do not deduct balance");
 
   const logout = await request("/api/auth/logout", { method: "POST" }, cookie);
   assert.equal(logout.status, 200);
