@@ -131,7 +131,9 @@ app.post("/api/auth/logout", async (req, res) => {
 app.get("/api/auth/me", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) return;
-  res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, plan: user.plan, credits: user.credits } });
+  const ownerEmail = (process.env.NAI_GITHUB_OWNER_EMAIL || "").trim().toLowerCase();
+  const isRepositoryOwner = Boolean(ownerEmail && user.email?.trim().toLowerCase() === ownerEmail);
+  res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, plan: user.plan, credits: user.credits, isRepositoryOwner } });
 });
 app.get("/api/memories", async (req, res) => {
   const user = await requireUser(req, res);
