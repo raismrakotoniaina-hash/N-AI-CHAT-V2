@@ -654,13 +654,16 @@ function App() {
               ) : (
                 paymentHistory.map((payment) => (
                   <div className="payment-history-item" key={payment.reference}>
-                    <div>
+                    <div className="payment-history-main">
                       <strong>{payment.planId.toUpperCase()}</strong>
                       <span>{payment.credits.toLocaleString("fr-FR")} crédits</span>
+                      <small>{payment.paymentMethod || "PAPI"}</small>
                     </div>
-                    <div>
+                    <div className="payment-history-side">
                       <strong>{formatMGA(payment.amount)}</strong>
                       <span>{payment.status === "paid" ? "SUCCESS" : payment.status.toUpperCase()}</span>
+                      <small>{payment.paidAt || payment.createdAt ? new Date(payment.paidAt || payment.createdAt).toLocaleString("fr-FR") : ""}</small>
+                      {payment.paymentReference && <small>Réf. {payment.paymentReference}</small>}
                     </div>
                   </div>
                 ))
