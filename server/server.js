@@ -7,7 +7,7 @@ import rateLimit from "express-rate-limit";
 import { registerUser, loginUser, getUserByToken, attachSession, removeSession, spendCredits, addCredits, setUserPlan } from "./authStore.js";
 import { initStorage, getCollection, setCollection } from "./storage.js";
 import { listMemories, createMemory, updateMemory, deleteMemory, clearMemories } from "./memoryStore.js";
-import { listRepository, readRepositoryFile, proposeChange, analyzeRepositorySnapshot } from "./githubIntegration.js";
+import { listRepository, readRepositoryFile, proposeChange, analyzeRepositorySnapshot } from "./githubIntegration.js";\nimport { analyzeRepositoryWithAI, ANALYSIS_FILES } from "./repositoryAi.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -205,8 +205,27 @@ app.get("/api/github/file", async (req, res) => {
 app.post("/api/github/analyze", async (req, res) => {
   if (!await requireRepositoryOwner(req, res)) return;
   try {
-    const entries = await listRepository(req.body?.path || "");
-    res.json({ success: true, analysis: analyzeRepositorySnapshot(entries), path: req.body?.path || "" });
+    const path = req.body?.path || "";
+    const entries = await listRepository(path);
+    const structural = analyzeRepositorySnapshot(entries);
+    const files = [];
+    for (const filePath of ANALYSIS_FILES) {
+      try {
+        files.push(await readRepositoryFile(filePath));
+      } catch (error) {
+        if (error.status !== 404 && error.status !== 403) throw error;
+      }
+    }
+    const intelligent = await analyzeRepositoryWithAI(files);
+    res.json({
+      success: true,
+      path,
+      analysis: {
+        ...structural,
+        intelligent,
+        filesRead: files.map((file) => ({ path: file.path, sha: file.sha })),
+      },
+    });
   } catch (error) { githubError(res, error); }
 });
 app.post("/api/github/propose", async (req, res) => {
