@@ -10,6 +10,7 @@ import { LANGUAGES, useTranslation } from "./services/i18n";
 import { PLANS, formatMGA } from "./config/plans";
 
 const STORAGE_KEY = "n-ai-chat-v2-messages";
+const CONVERSATIONS_KEY = "n-ai-chat-v2-conversations";
 
 function App() {
   const { language, t, setLanguage } = useTranslation();
@@ -26,44 +27,93 @@ function App() {
   const [paymentError, setPaymentError] = useState("");
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [conversations, setConversations] = useState([]);
+  const [conversationsLoaded, setConversationsLoaded] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState(null);
 
   useEffect(() => {
     setHistoryLoaded(false);
+    setConversationsLoaded(false);
 
     try {
       const key = user?.id
+        ? CONVERSATIONS_KEY + "-" + user.id
+        : CONVERSATIONS_KEY;
+
+      const savedConversations = localStorage.getItem(key);
+      let parsedConversations = savedConversations ? JSON.parse(savedConversations) : [];
+
+      if (!Array.isArray(parsedConversations)) parsedConversations = [];
+
+      const legacyKey = user?.id
         ? STORAGE_KEY + "-" + user.id
         : STORAGE_KEY;
+      const legacySaved = localStorage.getItem(legacyKey);
 
-      const saved = localStorage.getItem(key);
+      if (parsedConversations.length === 0 && legacySaved) {
+        const legacyMessages = JSON.parse(legacySaved);
+        if (Array.isArray(legacyMessages) && legacyMessages.length > 0) {
+          parsedConversations = [{
+            id: String(Date.now()),
+            title: legacyMessages.find((item) => item.role === "user")?.content?.slice(0, 45) || "Nouvelle conversation",
+            messages: legacyMessages,
+            updatedAt: Date.now(),
+          }];
+        }
+      }
 
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setMessages(Array.isArray(parsed) ? parsed : []);
+      setConversations(parsedConversations);
+      if (parsedConversations.length > 0) {
+        const latest = [...parsedConversations].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+        setCurrentConversationId(latest.id);
+        setMessages(Array.isArray(latest.messages) ? latest.messages : []);
       } else {
+        setCurrentConversationId(String(Date.now()));
         setMessages([]);
       }
     } catch (error) {
       console.error("Erreur chargement historique:", error);
+      setConversations([]);
+      setCurrentConversationId(String(Date.now()));
       setMessages([]);
     } finally {
       setHistoryLoaded(true);
+      setConversationsLoaded(true);
     }
   }, [user?.id]);
 
   useEffect(() => {
-    if (!historyLoaded) return;
+    if (!historyLoaded || !conversationsLoaded || !messages.length || !currentConversationId) return;
 
     try {
       const key = user?.id
-        ? STORAGE_KEY + "-" + user.id
-        : STORAGE_KEY;
+        ? CONVERSATIONS_KEY + "-" + user.id
+        : CONVERSATIONS_KEY;
 
-      localStorage.setItem(key, JSON.stringify(messages));
+      const title =
+        messages.find((item) => item.role === "user")?.content?.slice(0, 45) ||
+        "Nouvelle conversation";
+
+      setConversations((current) => {
+        const updated = {
+          id: currentConversationId,
+          title,
+          messages,
+          updatedAt: Date.now(),
+        };
+
+        const next = current.some((item) => item.id === currentConversationId)
+          ? current.map((item) => item.id === currentConversationId ? updated : item)
+          : [updated, ...current];
+
+        const sorted = [...next].sort((a, b) => b.updatedAt - a.updatedAt);
+        localStorage.setItem(key, JSON.stringify(sorted));
+        return sorted;
+      });
     } catch (error) {
-      console.error("Erreur sauvegarde historique:", error);
+      console.error("Erreur sauvegarde conversations:", error);
     }
-  }, [messages, user?.id, historyLoaded]);
+  }, [messages, currentConversationId, user?.id, historyLoaded, conversationsLoaded]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -328,13 +378,18 @@ function App() {
     setMessages([]);
     setMessage("");
     setLoading(false);
+    setCurrentConversationId(String(Date.now()));
     setCurrentPage("chat");
     setSidebarOpen(false);
-    localStorage.removeItem(STORAGE_KEY);
+  };
 
-    if (user?.id) {
-      localStorage.removeItem(`${STORAGE_KEY}-${user.id}`);
-    }
+  const handleSelectConversation = (conversation) => {
+    setCurrentConversationId(conversation.id);
+    setMessages(Array.isArray(conversation.messages) ? conversation.messages : []);
+    setMessage("");
+    setLoading(false);
+    setCurrentPage("chat");
+    setSidebarOpen(false);
   };
 
   const renderPlans = () => (
@@ -778,6 +833,9 @@ function App() {
         onClose={() => setSidebarOpen(false)}
         onNewChat={handleNewChat}
         onNavigate={handleNavigate}
+        conversations={conversations}
+        currentConversationId={currentConversationId}
+        onSelectConversation={handleSelectConversation}
       />
 
       <section className="main-panel">
