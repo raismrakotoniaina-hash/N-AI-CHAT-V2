@@ -7,7 +7,8 @@ import rateLimit from "express-rate-limit";
 import { registerUser, loginUser, getUserByToken, attachSession, removeSession, spendCredits, addCredits, setUserPlan } from "./authStore.js";
 import { initStorage, getCollection, setCollection } from "./storage.js";
 import { listMemories, createMemory, updateMemory, deleteMemory, clearMemories } from "./memoryStore.js";
-import { listRepository, readRepositoryFile, proposeChange, analyzeRepositorySnapshot } from "./githubIntegration.js";\nimport { analyzeRepositoryWithAI, ANALYSIS_FILES } from "./repositoryAi.js";
+import { listRepository, readRepositoryFile, proposeChange, analyzeRepositorySnapshot } from "./githubIntegration.js";
+import { analyzeRepositoryWithAI, ANALYSIS_FILES } from "./repositoryAi.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
