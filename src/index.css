@@ -1589,3 +1589,46 @@ button:disabled {
     text-align: left;
   }
 }
+
+/* CHAT CONVERSATION HISTORY */
+.conversation-history {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(103, 160, 230, 0.09);
+  overflow-y: auto;
+  max-height: 38vh;
+}
+.conversation-history-title {
+  padding: 4px 10px 7px;
+  color: #65758e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.conversation-item {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  color: #7f8da8;
+  background: transparent;
+  text-align: left;
+  overflow: hidden;
+}
+.conversation-item span {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.conversation-item:hover,
+.conversation-item.active {
+  color: #d9e8ff;
+  background: rgba(84, 133, 255, 0.08);
+}
