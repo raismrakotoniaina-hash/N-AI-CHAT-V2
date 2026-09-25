@@ -24,10 +24,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Build
-        run: npm run build
+      - name: Build with GitHub Pages base
+        run: npm run build -- --base=/N-AI-CHAT-V2/
+      - name: Verify built assets
+        run: |
+          test -f dist/index.html
+          test -d dist/assets
+          grep -q '/N-AI-CHAT-V2/assets/' dist/index.html
+          if grep -q 'src/main.jsx' dist/index.html; then
+            echo "ERROR: Vite source file leaked into deployed HTML"
+            exit 1
+          fi
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
