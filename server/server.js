@@ -22,10 +22,24 @@ const CREDIT_COSTS = { chat: 1, coding: 8, research: 8, image: 50 };
 
 app.use(helmet());
 const allowedOrigins = [
-  process.env.FRONTEND_URL || "http://localhost:5173",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5178",
+  "https://raismrakotoniaina-hash.github.io",
+  "https://raismrakotoniaina-hash.github.io/N-AI-CHAT-V2",
+  process.env.FRONTEND_URL,
   PUBLIC_FRONTEND_URL,
-].filter(Boolean);
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+].filter(Boolean).map((origin) => origin.endsWith("/") ? origin.slice(0, -1) : origin);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin.endsWith("/") ? origin.slice(0, -1) : origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("CORS origin not allowed"));
+  },
+  credentials: true,
+}));
 
 app.post("/api/payments/papi/notify", express.raw({ type: "application/json" }), (req, res) => {
   try {
