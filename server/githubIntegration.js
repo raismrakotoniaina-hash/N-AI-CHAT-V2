@@ -5,7 +5,10 @@ const ALLOWED = new Set(["src", "server", "public", "docs"]);
 const MAX_FILE_BYTES = 180_000;
 const BLOCKED_NAMES = new Set([".env", ".env.local", ".env.production", ".env.development", "credentials.json"]);
 
-function isBlockedPath(path) {\n  const name = path.split("/").at(-1).toLowerCase();\n  return BLOCKED_NAMES.has(name) || /\.(pem|key|p12|pfx)$/i.test(name);\n}
+function isBlockedPath(path) {
+  const name = path.split("/").at(-1).toLowerCase();
+  return BLOCKED_NAMES.has(name) || /\.(pem|key|p12|pfx)$/i.test(name);
+}
 
 function config() {
   const token = process.env.NAI_GITHUB_TOKEN;
