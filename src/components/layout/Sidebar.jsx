@@ -3,7 +3,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "../../services/i18n";
 
-function Sidebar({ open, onClose, onNewChat, onNavigate }) {
+function Sidebar({ open, onClose, onNewChat, onNavigate, conversations = [], currentConversationId, onSelectConversation }) {
   const { t } = useTranslation();
 
   const menuItems = [
@@ -44,6 +44,23 @@ function Sidebar({ open, onClose, onNewChat, onNavigate }) {
             );
           })}
         </nav>
+
+        {conversations.length > 0 && (
+          <div className="conversation-history">
+            <div className="conversation-history-title">Historique</div>
+            {conversations.slice(0, 8).map((conversation) => (
+              <button
+                className={`conversation-item ${currentConversationId === conversation.id ? "active" : ""}`}
+                key={conversation.id}
+                type="button"
+                onClick={() => onSelectConversation?.(conversation)}
+              >
+                <MessageSquare size={15} />
+                <span>{conversation.title || "Nouvelle conversation"}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="sidebar-bottom">
           <button className="nav-item" type="button" onClick={() => handleNavigate("settings")}>
