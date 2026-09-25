@@ -22,6 +22,10 @@ function AuthPage({ onAuthenticated }) {
         credentials: "include",
         body: JSON.stringify(body),
       });
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("Tsy mifandray amin\u0027ny serveur API ny application. Mila backend mandeha sy VITE_API_URL.");
+      }
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.error || "Authentication failed.");
       onAuthenticated(data.user);
