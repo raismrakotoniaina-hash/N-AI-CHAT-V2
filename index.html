@@ -16,7 +16,7 @@
   </head>
   <body>
     <div id="root">
-      <div id="boot-status" role="status"><div><strong>N-AI Chat V2</strong><p>Misokatra ny application...</p></div></div>
+      <div id="boot-status" role="status"><div><strong>N-AI Chat V2</strong><p>Fanamarinana deployment V3...</p></div></div>
     </div>
     <script>
       window.addEventListener("error", function (event) {
@@ -27,7 +27,7 @@
       });
       window.setTimeout(function () {
         var status = document.getElementById("boot-status");
-        if (status) status.querySelector("p").textContent = "Mbola miandry ny application. Raha tsy misokatra dia havaozy ny pejy.";
+        if (status) status.querySelector("p").textContent = "Deployment V3: tsy tafiditra ny React. Jereo ny GitHub Actions.";
       }, 10000);
     </script>
     <script type="module" src="/src/main.jsx"></script>
