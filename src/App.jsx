@@ -24,6 +24,7 @@ function App() {
   const [credits, setCredits] = useState(0);
   const [paymentLoading, setPaymentLoading] = useState("");
   const [paymentError, setPaymentError] = useState("");
+  const [paymentHistory, setPaymentHistory] = useState([]);
 
   useEffect(() => {
     try {
@@ -103,6 +104,27 @@ function App() {
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
   };
+
+  useEffect(() => {
+    if (!user || currentPage !== "profile") return;
+
+    const loadPaymentHistory = async () => {
+      try {
+        const response = await fetch(apiUrl("/api/payments/history"), {
+          credentials: "include",
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.success && Array.isArray(data.payments)) {
+          setPaymentHistory(data.payments);
+        }
+      } catch (error) {
+        console.error("Payment history error:", error);
+      }
+    };
+
+    loadPaymentHistory();
+  }, [user, currentPage]);
 
   const handleNavigate = (page) => {
     setCurrentPage(page);
@@ -624,6 +646,26 @@ function App() {
             >
               {t("plans")}
             </button>
+
+            <div className="payment-history">
+              <h3>Historique des paiements</h3>
+              {paymentHistory.length === 0 ? (
+                <p>Aucun paiement enregistré.</p>
+              ) : (
+                paymentHistory.map((payment) => (
+                  <div className="payment-history-item" key={payment.reference}>
+                    <div>
+                      <strong>{payment.planId.toUpperCase()}</strong>
+                      <span>{payment.credits.toLocaleString("fr-FR")} crédits</span>
+                    </div>
+                    <div>
+                      <strong>{formatMGA(payment.amount)}</strong>
+                      <span>{payment.status === "paid" ? "SUCCESS" : payment.status.toUpperCase()}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
 
             <button
               className="secondary-button"
