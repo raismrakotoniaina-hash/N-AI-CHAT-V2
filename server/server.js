@@ -93,11 +93,16 @@ function getCookie(req, name) {
   return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
 }
 function setSessionCookie(res, token) {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  res.setHeader("Set-Cookie", `nai_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800${secure}`);
+  const production = process.env.NODE_ENV === "production";
+  const sameSite = production ? "None" : "Lax";
+  const secure = production ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `nai_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=${sameSite}; Max-Age=604800${secure}`);
 }
 function clearSessionCookie(res) {
-  res.setHeader("Set-Cookie", "nai_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0");
+  const production = process.env.NODE_ENV === "production";
+  const sameSite = production ? "None" : "Lax";
+  const secure = production ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `nai_session=; HttpOnly; Path=/; SameSite=${sameSite}; Max-Age=0${secure}`);
 }
 function requireUser(req, res) {
   const token = getCookie(req, "nai_session");
