@@ -1528,3 +1528,64 @@ button:disabled {
   color: #79dfff; font-size: 11px; cursor: pointer;
 }
 .profile-card .secondary-button { width: 100%; margin-top: 10px; }
+
+
+/* =========================================
+   PAYMENT HISTORY
+   ========================================= */
+.payment-history {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(103,160,230,.13);
+  border-radius: 16px;
+  background: rgba(8,18,35,.58);
+}
+.payment-history h3 {
+  margin: 0 0 12px;
+  color: #e8f3ff;
+  font-size: 14px;
+}
+.payment-history > p {
+  margin: 0;
+  color: #71819a;
+  font-size: 11px;
+}
+.payment-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(103,160,230,.09);
+}
+.payment-history-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.payment-history-item strong {
+  color: #e8f3ff;
+  font-size: 12px;
+}
+.payment-history-item span {
+  color: #70dcff;
+  font-size: 10px;
+}
+.payment-history-item small {
+  color: #71819a;
+  font-size: 9px;
+}
+.payment-history-side {
+  align-items: flex-end;
+  text-align: right;
+}
+@media (max-width: 420px) {
+  .payment-history-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .payment-history-side {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
