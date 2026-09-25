@@ -41,6 +41,10 @@ function App() {
   const [repositoryLoading, setRepositoryLoading] = useState(false);
   const [repositoryError, setRepositoryError] = useState("");
   const [isRepositoryOwner, setIsRepositoryOwner] = useState(false);
+  const [proposalContent, setProposalContent] = useState("");
+  const [proposalApproved, setProposalApproved] = useState(false);
+  const [proposalLoading, setProposalLoading] = useState(false);
+  const [proposalResult, setProposalResult] = useState(null);
   const [developerFile, setDeveloperFile] = useState(null);
   const [developerFiles, setDeveloperFiles] = useState([]);
   const [developerError, setDeveloperError] = useState("");
@@ -182,10 +186,47 @@ function App() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) throw new Error(data.error || "Tsy afaka mamaky fichier.");
       setRepositoryFile(data.file);
+      setProposalContent(data.file?.content || "");
+      setProposalApproved(false);
+      setProposalResult(null);
     } catch (error) {
       setRepositoryError(error.message || "GitHub integration error.");
     } finally {
       setRepositoryLoading(false);
+    }
+  };
+
+  const handleRepositoryProposal = async () => {
+    if (!repositoryFile?.path || repositoryFile.path === "Analyse N-AI" || !proposalContent.trim() || !proposalApproved || proposalLoading) return;
+
+    setProposalLoading(true);
+    setRepositoryError("");
+    setProposalResult(null);
+
+    try {
+      const response = await fetch(apiUrl("/api/github/propose"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          path: repositoryFile.path,
+          content: proposalContent,
+          expectedSha: repositoryFile.sha,
+          approved: true,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Tsy afaka namorona Pull Request.");
+      }
+
+      setProposalResult(data);
+      setProposalApproved(false);
+    } catch (error) {
+      setRepositoryError(error.message || "Pull Request error.");
+    } finally {
+      setProposalLoading(false);
     }
   };
 
@@ -751,6 +792,44 @@ function App() {
             {repositoryFile ? (
               <div style={{ marginTop: 16 }}>
                 <strong>{repositoryFile.path}</strong>
+                {repositoryFile.path !== "Analyse N-AI" && (
+                  <div style={{ marginTop: 14 }}>
+                    <h3>✏️ Proposer une modification</h3>
+                    <p>Ovay eto ny fichier. Tsy manoratra mivantana amin'ny main i N-AI: Pull Request ihany no mamorona.</p>
+                    <textarea
+                      className="feature-input"
+                      value={proposalContent}
+                      onChange={(e) => setProposalContent(e.target.value)}
+                      style={{ minHeight: 320, fontFamily: "monospace", marginTop: 8 }}
+                    />
+                    <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={proposalApproved}
+                        onChange={(e) => setProposalApproved(e.target.checked)}
+                      />
+                      Ekeko ny hamoronana Pull Request ho an'ity fanovana ity.
+                    </label>
+                    <button
+                      className="feature-button"
+                      type="button"
+                      disabled={!proposalApproved || !proposalContent.trim() || proposalLoading}
+                      onClick={handleRepositoryProposal}
+                      style={{ marginTop: 10 }}
+                    >
+                      {proposalLoading ? "Miandry..." : "🔀 Mamorona Pull Request"}
+                    </button>
+                    {proposalResult?.pullRequest && (
+                      <div className="feature-card" style={{ marginTop: 12 }}>
+                        <strong>✅ Pull Request voaforona</strong>
+                        <p>Branch: {proposalResult.branch}</p>
+                        <a href={proposalResult.pullRequest} target="_blank" rel="noreferrer">
+                          Hijery ny Pull Request #{proposalResult.number}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <pre style={{ whiteSpace: "pre-wrap", overflowX: "auto", marginTop: 10 }}>{repositoryFile.content}</pre>
               </div>
             ) : (
