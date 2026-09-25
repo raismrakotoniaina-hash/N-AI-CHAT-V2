@@ -41,6 +41,10 @@ function App() {
   const [repositoryLoading, setRepositoryLoading] = useState(false);
   const [repositoryError, setRepositoryError] = useState("");
   const [isRepositoryOwner, setIsRepositoryOwner] = useState(false);
+  const [developerFile, setDeveloperFile] = useState(null);
+  const [developerFiles, setDeveloperFiles] = useState([]);
+  const [developerError, setDeveloperError] = useState("");
+  const [developerLoading, setDeveloperLoading] = useState(false);
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -302,6 +306,37 @@ function App() {
       setMemoryError(error.message || "Nisy olana tamin'ny famafana.");
     } finally {
       setMemoryLoading(false);
+    }
+  };
+
+  const handleDeveloperUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    setDeveloperLoading(true);
+    setDeveloperError("");
+    setDeveloperFile(null);
+
+    try {
+      const safeFiles = files
+        .filter((file) => file.size <= 180000)
+        .slice(0, 50);
+
+      const previews = await Promise.all(
+        safeFiles.map(async (file) => ({
+          path: file.webkitRelativePath || file.name,
+          size: file.size,
+          type: file.type || "text/plain",
+          content: await file.text(),
+        }))
+      );
+
+      setDeveloperFiles(previews);
+    } catch (error) {
+      setDeveloperError(error.message || "Tsy afaka namaky ny projet.");
+    } finally {
+      setDeveloperLoading(false);
+      event.target.value = "";
     }
   };
 
@@ -702,6 +737,71 @@ function App() {
             <p style={{ marginTop: 16, opacity: 0.75 }}>
               GitHub sy upload tena izy dia hampifandraisina amin'ity Developer Engine ity amin'ny dingana manaraka.
             </p>
+          </div>
+        </main>
+      );
+    }
+
+    if (currentPage === "developer") {
+      return (
+        <main className="feature-page">
+          <div className="feature-header">
+            <div className="feature-icon">🧑‍💻</div>
+            <div>
+              <h1>Projet développeur</h1>
+              <p>Ampidiro ny projet-nao dia afaka manampy anao hamaky sy handinika azy i N-AI.</p>
+            </div>
+          </div>
+          <div className="feature-card">
+            <h2>📂 Ampidiro ny projet</h2>
+            <p>Ny fichiers ampidirina eto dia vakiana ao amin'ny navigateur aloha; tsy mifangaro amin'ny repository anatiny an'i N-AI.</p>
+            <input
+              type="file"
+              multiple
+              onChange={handleDeveloperUpload}
+              disabled={developerLoading}
+              style={{ marginTop: 12, width: "100%" }}
+            />
+            {developerError && <div className="auth-error" style={{ marginTop: 12 }}>{developerError}</div>}
+            {developerLoading && <p style={{ marginTop: 12 }}>Mamaky ny projet...</p>}
+            {developerFiles.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <strong>Fichiers voaray: {developerFiles.length}</strong>
+                <div style={{ marginTop: 10 }}>
+                  {developerFiles.map((file) => (
+                    <button
+                      key={file.path}
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => setDeveloperFile(file)}
+                      style={{ display: "block", width: "100%", textAlign: "left", marginBottom: 8 }}
+                    >
+                      📄 {file.path} — {Math.ceil(file.size / 1024)} KB
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {developerFile && (
+              <div style={{ marginTop: 16 }}>
+                <strong>{developerFile.path}</strong>
+                <pre style={{ whiteSpace: "pre-wrap", overflowX: "auto", marginTop: 10 }}>
+                  {developerFile.content.slice(0, 50000)}
+                </pre>
+              </div>
+            )}
+            <button
+              className="feature-button"
+              type="button"
+              disabled={!developerFiles.length}
+              onClick={() => {
+                setMessage("Diniho ireto fichiers projet-ko ireto ary lazao amiko ny bugs, risques ary fanatsarana tokony hatao.");
+                setCurrentPage("chat");
+              }}
+              style={{ marginTop: 12 }}
+            >
+              🧠 Ampanadihady amin'i N-AI
+            </button>
           </div>
         </main>
       );
