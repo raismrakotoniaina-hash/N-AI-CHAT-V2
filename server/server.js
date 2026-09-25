@@ -9,6 +9,7 @@ import { initStorage, getCollection, setCollection } from "./storage.js";
 import { listMemories, createMemory, updateMemory, deleteMemory, clearMemories } from "./memoryStore.js";
 import { listRepository, readRepositoryFile, proposeChange, analyzeRepositorySnapshot } from "./githubIntegration.js";
 import { analyzeRepositoryWithAI, ANALYSIS_FILES } from "./repositoryAi.js";
+import { analyzeDeveloperProject } from "./developerAi.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -237,6 +238,44 @@ app.post("/api/github/propose", async (req, res) => {
     const result = await proposeChange(req.body || {});
     res.status(201).json({ success: true, ...result });
   } catch (error) { githubError(res, error); }
+});
+
+app.post("/api/developer/analyze", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+
+    const files = req.body?.files;
+    const cost = CREDIT_COSTS.coding;
+
+    if (!Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ success: false, error: "Tsy misy fichier projet." });
+    }
+    if (user.credits < cost) {
+      return res.status(402).json({
+        success: false,
+        error: "Tsy ampy ny crédit hanaovana analyse.",
+        credits: user.credits,
+        required: cost,
+      });
+    }
+
+    const analysis = await analyzeDeveloperProject(files);
+    const updatedUser = await spendCredits(user.id, cost, "coding");
+    if (!updatedUser) {
+      return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
+    }
+
+    res.json({
+      success: true,
+      analysis,
+      credits: updatedUser.credits,
+      creditsUsed: cost,
+    });
+  } catch (error) {
+    console.error("Developer analysis error:", error);
+    res.status(400).json({ success: false, error: error.message || "Developer analysis failed." });
+  }
 });
 
 app.get("/api/credits", async (req, res) => {
