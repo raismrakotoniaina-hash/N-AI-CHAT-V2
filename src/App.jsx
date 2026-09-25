@@ -378,6 +378,12 @@ function App() {
   };
 
   const handleNavigate = (page) => {
+    if (page === "repository" && !isRepositoryOwner) {
+      setCurrentPage("developer");
+      setSidebarOpen(false);
+      return;
+    }
+
     setCurrentPage(page);
     setSidebarOpen(false);
   };
@@ -569,10 +575,36 @@ function App() {
   };
 
   const handleNewChat = () => {
+    const id = String(Date.now());
+    const key = user?.id
+      ? CONVERSATIONS_KEY + "-" + user.id
+      : CONVERSATIONS_KEY;
+
+    const emptyConversation = {
+      id,
+      title: "Nouvelle conversation",
+      messages: [],
+      updatedAt: Date.now(),
+    };
+
+    try {
+      const saved = localStorage.getItem(key);
+      const current = saved ? JSON.parse(saved) : [];
+      const list = Array.isArray(current) ? current : [];
+      const next = [emptyConversation, ...list.filter((item) => item?.id !== id)];
+      localStorage.setItem(key, JSON.stringify(next.slice(0, 20)));
+    } catch (error) {
+      console.error("Erreur sauvegarde nouvelle conversation:", error);
+    }
+
+    setConversations((current) => [
+      emptyConversation,
+      ...current.filter((item) => item.id !== id),
+    ].slice(0, 20));
     setMessages([]);
     setMessage("");
     setLoading(false);
-    setCurrentConversationId(String(Date.now()));
+    setCurrentConversationId(id);
     setCurrentPage("chat");
     setSidebarOpen(false);
   };
@@ -675,6 +707,20 @@ function App() {
 
     if (currentPage === "repository" && !isRepositoryOwner) {
       return <main className="feature-page"><div className="feature-card"><h2>Accès réservé</h2><p>Cette section est réservée à l’administrateur.</p></div></main>;
+    }
+
+    if (currentPage === "repository" && !isRepositoryOwner) {
+      return (
+        <main className="feature-page">
+          <div className="feature-card">
+            <h2>🔒 Accès réservé à l'administrateur</h2>
+            <p>Cette zone interne de N-AI n'est pas accessible aux utilisateurs.</p>
+            <button className="feature-button" type="button" onClick={() => setCurrentPage("developer")}>
+              🧑‍💻 Projet développeur
+            </button>
+          </div>
+        </main>
+      );
     }
 
     if (currentPage === "repository") {
@@ -1057,13 +1103,18 @@ function App() {
                 type="button"
                 onClick={() => {
                   localStorage.removeItem(STORAGE_KEY);
+                  localStorage.removeItem(CONVERSATIONS_KEY);
 
                   if (user?.id) {
                     localStorage.removeItem(
                       `${STORAGE_KEY}-${user.id}`
                     );
+                    localStorage.removeItem(
+                      `${CONVERSATIONS_KEY}-${user.id}`
+                    );
                   }
 
+                  setConversations([]);
                   setMessages([]);
                   setCurrentPage("chat");
                 }}
