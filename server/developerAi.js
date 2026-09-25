@@ -17,10 +17,16 @@ const BINARY_EXTENSIONS = /\.(png|jpe?g|gif|webp|ico|pdf|zip|tar|gz|7z|mp4|mov|a
 
 function cleanPath(value) {
   const path = String(value || "").trim().replace(/\\/g, "/");
-  if (!path || path.startsWith("/") || path.includes("..") || path.split("/").some((part) => !part || /[\\x00-\\x1f]/.test(part))) {
+  if (!path || path.startsWith("/") || path.includes("..") || /[\x00-\x1f]/.test(path)) {
     throw new Error("Path fichier invalide.");
   }
-  return path;
+
+  const parts = path.split("/").filter(Boolean);
+  if (!parts.length || parts.some((part) => part === "." || part === "..")) {
+    throw new Error("Path fichier invalide.");
+  }
+
+  return parts.join("/");
 }
 
 function isBlockedPath(path) {
