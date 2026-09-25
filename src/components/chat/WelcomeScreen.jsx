@@ -1,4 +1,4 @@
-import { MessageSquare, Image, Search, Sparkles } from "lucide-react";
+import { MessageSquare, Image, Search, Code2, Sparkles } from "lucide-react";
 import { useTranslation } from "../../services/i18n";
 
 function WelcomeScreen({ onAction }) {
@@ -7,6 +7,7 @@ function WelcomeScreen({ onAction }) {
     { id: "chat", icon: MessageSquare, title: t("chat"), description: t("chatDesc") },
     { id: "image", icon: Image, title: t("image"), description: t("imageDesc") },
     { id: "research", icon: Search, title: t("research"), description: t("researchDesc") },
+    { id: "coding", icon: Code2, title: "Coding IA", description: "Aide pour coder et créer du code." },
   ];
   return (
     <main className="chat-content">
