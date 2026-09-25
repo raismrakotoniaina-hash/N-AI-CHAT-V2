@@ -176,6 +176,26 @@ app.post("/api/payments/create", async (req, res) => {
   }
 });
 
+app.get("/api/payments/history", async (req, res) => {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const payments = (await getCollection("payments"))
+    .filter((item) => item.userId === user.id)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .map((payment) => ({
+      reference: payment.reference,
+      planId: payment.planId,
+      amount: payment.amount,
+      credits: payment.credits,
+      status: payment.status,
+      paymentReference: payment.paymentReference || null,
+      paymentMethod: payment.paymentMethod || null,
+      createdAt: payment.createdAt,
+      paidAt: payment.paidAt || null,
+    }));
+  res.json({ success: true, payments });
+});
+
 app.get("/api/payments/:reference", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) return;
