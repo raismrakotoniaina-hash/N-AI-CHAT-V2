@@ -6,6 +6,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { registerUser, loginUser, getUserByToken, attachSession, removeSession, spendCredits, addCredits, setUserPlan } from "./authStore.js";
 import { initStorage, getCollection, setCollection } from "./storage.js";
+import { listMemories, createMemory, updateMemory, deleteMemory, clearMemories } from "./memoryStore.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -130,6 +131,51 @@ app.get("/api/auth/me", async (req, res) => {
   if (!user) return;
   res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, plan: user.plan, credits: user.credits } });
 });
+app.get("/api/memories", async (req, res) => {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const memories = await listMemories(user.id);
+  res.json({ success: true, memories });
+});
+
+app.post("/api/memories", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+    const memory = await createMemory(user.id, req.body || {});
+    res.status(201).json({ success: true, memory });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+app.patch("/api/memories/:id", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+    const memory = await updateMemory(user.id, req.params.id, req.body || {});
+    if (!memory) return res.status(404).json({ success: false, error: "Memory not found." });
+    res.json({ success: true, memory });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+app.delete("/api/memories/:id", async (req, res) => {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const deleted = await deleteMemory(user.id, req.params.id);
+  if (!deleted) return res.status(404).json({ success: false, error: "Memory not found." });
+  res.json({ success: true });
+});
+
+app.delete("/api/memories", async (req, res) => {
+  const user = await requireUser(req, res);
+  if (!user) return;
+  const deleted = await clearMemories(user.id);
+  res.json({ success: true, deleted });
+});
+
 app.get("/api/credits", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) return;
