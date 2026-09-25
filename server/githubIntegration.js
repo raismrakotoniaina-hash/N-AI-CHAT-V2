@@ -57,3 +57,23 @@ export async function proposeChange({ path, content, expectedSha, approved }) {
   return { pullRequest: pr.html_url, number: pr.number, branch };
 }
 import crypto from "node:crypto";
+
+export function analyzeRepositorySnapshot(entries) {
+  const files = Array.isArray(entries) ? entries.filter((x) => x?.type === "file") : [];
+  const names = files.map((x) => x.path);
+  const findings = [];
+  if (!names.some((x) => x === "package.json" || x === "server/package.json")) findings.push({ level: "warning", message: "Tsy hita mazava ny package.json ao amin'ny snapshot." });
+  if (names.some((x) => x === ".env" || x.endsWith("/.env"))) findings.push({ level: "critical", message: "Misy .env ao amin'ny snapshot. Aza atao public ary aza commit secrets." });
+  if (names.some((x) => x === "server/server.js")) findings.push({ level: "info", message: "Hita ny backend Express server/server.js." });
+  if (names.some((x) => x === "src/App.jsx")) findings.push({ level: "info", message: "Hita ny frontend React src/App.jsx." });
+  if (names.some((x) => x.startsWith(".github/workflows/"))) findings.push({ level: "info", message: "Hita ny GitHub Actions workflow; azo jerena ny build/deploy." });
+  return {
+    files: names.length,
+    findings,
+    next: [
+      "Vakio tsirairay ny fichier ilaina alohan'ny fanovana.",
+      "Ampitahao amin'ny SHA ankehitriny ny fichier alohan'ny hanoratana.",
+      "Ataovy Pull Request ny fanovana fa aza manoratra mivantana amin'ny main."
+    ]
+  };
+}
