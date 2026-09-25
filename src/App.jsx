@@ -614,6 +614,27 @@ function App() {
             <button className="feature-button" type="button" disabled={repositoryLoading} onClick={() => loadRepository("")} style={{ marginTop: 12 }}>
               {repositoryLoading ? "Miandry..." : "🔄 Vakio ny repository"}
             </button>
+            <button className="feature-button" type="button" disabled={repositoryLoading} onClick={async () => {
+              setRepositoryLoading(true);
+              setRepositoryError("");
+              try {
+                const response = await fetch(apiUrl("/api/github/analyze"), {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({ path: repositoryPath }),
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.success) throw new Error(data.error || "Tsy afaka manao analyse.");
+                setRepositoryFile({ path: "Analyse N-AI", content: JSON.stringify(data.analysis, null, 2) });
+              } catch (error) {
+                setRepositoryError(error.message || "Repository analysis error.");
+              } finally {
+                setRepositoryLoading(false);
+              }
+            }} style={{ marginTop: 10 }}>
+              🧠 Analyse ny Repository
+            </button>
             {repositoryError && <div className="auth-error" style={{ marginTop: 12 }}>{repositoryError}</div>}
             {repositoryFile ? (
               <div style={{ marginTop: 16 }}>
