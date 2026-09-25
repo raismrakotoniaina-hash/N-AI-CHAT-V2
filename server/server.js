@@ -21,23 +21,8 @@ const PUBLIC_API_URL = (process.env.PUBLIC_API_URL || process.env.PUBLIC_APP_URL
 const CREDIT_COSTS = { chat: 1, coding: 8, research: 8, image: 50 };
 
 app.use(helmet());
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:5178",
-  "https://raismrakotoniaina-hash.github.io",
-  "https://raismrakotoniaina-hash.github.io/N-AI-CHAT-V2",
-  process.env.FRONTEND_URL,
-  PUBLIC_FRONTEND_URL,
-].filter(Boolean).map((origin) => origin.endsWith("/") ? origin.slice(0, -1) : origin);
-
 app.use(cors({
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin.endsWith("/") ? origin.slice(0, -1) : origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error("CORS origin not allowed"));
-  },
+  origin: true,
   credentials: true,
 }));
 
