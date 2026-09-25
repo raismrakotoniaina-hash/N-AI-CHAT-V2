@@ -35,6 +35,11 @@ function App() {
   const [memoryError, setMemoryError] = useState("");
   const [memoryDraft, setMemoryDraft] = useState("");
   const [memoryCategory, setMemoryCategory] = useState("general");
+  const [repositoryFiles, setRepositoryFiles] = useState([]);
+  const [repositoryPath, setRepositoryPath] = useState("");
+  const [repositoryFile, setRepositoryFile] = useState(null);
+  const [repositoryLoading, setRepositoryLoading] = useState(false);
+  const [repositoryError, setRepositoryError] = useState("");
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -144,6 +149,38 @@ function App() {
 
     checkAuth();
   }, []);
+
+  const loadRepository = async (path = "") => {
+    setRepositoryLoading(true);
+    setRepositoryError("");
+    setRepositoryFile(null);
+    try {
+      const response = await fetch(apiUrl("/api/github/files?path=" + encodeURIComponent(path)), { credentials: "include" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) throw new Error(data.error || "Tsy afaka mamaky repository.");
+      setRepositoryFiles(Array.isArray(data.files) ? data.files : []);
+      setRepositoryPath(path);
+    } catch (error) {
+      setRepositoryError(error.message || "GitHub integration error.");
+    } finally {
+      setRepositoryLoading(false);
+    }
+  };
+
+  const openRepositoryFile = async (path) => {
+    setRepositoryLoading(true);
+    setRepositoryError("");
+    try {
+      const response = await fetch(apiUrl("/api/github/file?path=" + encodeURIComponent(path)), { credentials: "include" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) throw new Error(data.error || "Tsy afaka mamaky fichier.");
+      setRepositoryFile(data.file);
+    } catch (error) {
+      setRepositoryError(error.message || "GitHub integration error.");
+    } finally {
+      setRepositoryLoading(false);
+    }
+  };
 
   const handleAuthenticated = (account) => {
     setUser(account);
@@ -560,6 +597,44 @@ function App() {
       return renderPlans();
     }
 
+    if (currentPage === "repository") {
+      return (
+        <main className="feature-page">
+          <div className="feature-header">
+            <div className="feature-icon">📁</div>
+            <div>
+              <h1>Repository N-AI</h1>
+              <p>Mamaky mivantana ny repository N-AI-CHAT-V2.</p>
+            </div>
+          </div>
+          <div className="feature-card">
+            <button className="secondary-button" type="button" onClick={() => { setCurrentPage("coding"); setRepositoryFile(null); }}>
+              ← Coding IA
+            </button>
+            <button className="feature-button" type="button" disabled={repositoryLoading} onClick={() => loadRepository("")} style={{ marginTop: 12 }}>
+              {repositoryLoading ? "Miandry..." : "🔄 Vakio ny repository"}
+            </button>
+            {repositoryError && <div className="auth-error" style={{ marginTop: 12 }}>{repositoryError}</div>}
+            {repositoryFile ? (
+              <div style={{ marginTop: 16 }}>
+                <strong>{repositoryFile.path}</strong>
+                <pre style={{ whiteSpace: "pre-wrap", overflowX: "auto", marginTop: 10 }}>{repositoryFile.content}</pre>
+              </div>
+            ) : (
+              <div style={{ marginTop: 16 }}>
+                {repositoryFiles.map((item) => (
+                  <button key={item.path} className="secondary-button" type="button" onClick={() => item.type === "dir" ? loadRepository(item.path) : openRepositoryFile(item.path)} style={{ display: "block", width: "100%", textAlign: "left", marginBottom: 8 }}>
+                    {item.type === "dir" ? "📁" : "📄"} {item.name}
+                  </button>
+                ))}
+                {!repositoryLoading && repositoryFiles.length === 0 && <small>Tsindrio “🔄 Vakio ny repository”.</small>}
+              </div>
+            )}
+          </div>
+        </main>
+      );
+    }
+
     if (currentPage === "coding") {
       return (
         <main className="feature-page">
@@ -589,6 +664,9 @@ function App() {
               }}
             >
               Alefa amin'ny Coding IA — 8 crédits
+            </button>
+            <button className="secondary-button" type="button" onClick={() => { setCurrentPage("repository"); loadRepository(""); }} style={{ marginTop: 10 }}>
+              📁 Sokafy ny Repository
             </button>
           </div>
         </main>
