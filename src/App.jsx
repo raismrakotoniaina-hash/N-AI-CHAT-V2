@@ -664,6 +664,49 @@ function App() {
       );
     }
 
+    if (currentPage === "developer") {
+      return (
+        <main className="feature-page">
+          <div className="feature-header">
+            <div className="feature-icon">🧑‍💻</div>
+            <div>
+              <h1>Projet développeur</h1>
+              <p>Amboary, diniho ary fantaro ny projet-nao miaraka amin'i N-AI.</p>
+            </div>
+          </div>
+          <div className="feature-card">
+            <h2>Atomboka amin'ny projet-nao</h2>
+            <p>
+              Ity toerana ity dia natao ho an'ny développeur rehetra. Tsy mahazo miditra amin'ny repository anatiny an'i N-AI ny mpampiasa.
+            </p>
+            <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+              <button className="feature-button" type="button" onClick={() => setMessage("Ampio aho handinika ity projet ity: ")}>
+                📂 Hampiditra projet
+              </button>
+              <button className="secondary-button" type="button" onClick={() => setMessage("Ampifandraiso amin'ny GitHub ny projet-ko: ")}>
+                🔗 Ampifandraiso GitHub
+              </button>
+              <button className="secondary-button" type="button" onClick={() => {
+                setMessage("Manampia ahy hitady sy hanamboatra bug ao amin'ny code-ko.");
+                setCurrentPage("chat");
+              }}>
+                🐛 Mitadiava bug
+              </button>
+              <button className="secondary-button" type="button" onClick={() => {
+                setMessage("Hazavao amiko ny structure sy ny fonctionnement an'ity projet ity.");
+                setCurrentPage("chat");
+              }}>
+                🧠 Analyse ny projet
+              </button>
+            </div>
+            <p style={{ marginTop: 16, opacity: 0.75 }}>
+              GitHub sy upload tena izy dia hampifandraisina amin'ity Developer Engine ity amin'ny dingana manaraka.
+            </p>
+          </div>
+        </main>
+      );
+    }
+
     if (currentPage === "coding") {
       return (
         <main className="feature-page">
@@ -693,6 +736,9 @@ function App() {
               }}
             >
               Alefa amin'ny Coding IA — 8 crédits
+            </button>
+            <button className="secondary-button" type="button" onClick={() => setCurrentPage("developer")} style={{ marginTop: 10 }}>
+              🧑‍💻 Projet développeur
             </button>
             {isRepositoryOwner && <button className="secondary-button" type="button" onClick={() => { setCurrentPage("repository"); loadRepository(""); }} style={{ marginTop: 10 }}>
               🔐 Repository N-AI (Admin)
