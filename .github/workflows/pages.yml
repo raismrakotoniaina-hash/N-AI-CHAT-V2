@@ -29,6 +29,8 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Build with GitHub Pages base
+        env:
+          VITE_API_URL: https://n-ai-chat-v2.onrender.com
         run: npm run build -- --base=/N-AI-CHAT-V2/
       - name: Verify built assets
         run: |
