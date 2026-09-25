@@ -709,20 +709,6 @@ function App() {
       return <main className="feature-page"><div className="feature-card"><h2>Accès réservé</h2><p>Cette section est réservée à l’administrateur.</p></div></main>;
     }
 
-    if (currentPage === "repository" && !isRepositoryOwner) {
-      return (
-        <main className="feature-page">
-          <div className="feature-card">
-            <h2>🔒 Accès réservé à l'administrateur</h2>
-            <p>Cette zone interne de N-AI n'est pas accessible aux utilisateurs.</p>
-            <button className="feature-button" type="button" onClick={() => setCurrentPage("developer")}>
-              🧑‍💻 Projet développeur
-            </button>
-          </div>
-        </main>
-      );
-    }
-
     if (currentPage === "repository") {
       return (
         <main className="feature-page">
@@ -794,7 +780,7 @@ function App() {
           </div>
           <div className="feature-card">
             <h2>📂 Ampidiro ny projet</h2>
-            <p>Ny fichiers ampidirina eto dia vakiana ao amin'ny navigateur aloha; tsy mifangaro amin'ny repository anatiny an'i N-AI.</p>
+            <p>Ny fichiers ampidirina eto dia vakiana ao amin'ny navigateur aloha ary ampiasaina handinihana ny projet-nao.</p>
             <input
               type="file"
               multiple
