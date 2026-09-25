@@ -2,7 +2,10 @@ const API = "https://api.github.com";
 const OWNER = "raismrakotoniaina-hash";
 const REPO = "N-AI-CHAT-V2";
 const ALLOWED = new Set(["src", "server", "public", "docs"]);
-const MAX_FILE_BYTES = 180_000;\nconst BLOCKED_NAMES = new Set([".env", ".env.local", ".env.production", ".env.development", "credentials.json"]);\n\nfunction isBlockedPath(path) {\n  const name = path.split("/").at(-1).toLowerCase();\n  return BLOCKED_NAMES.has(name) || /\\.(pem|key|p12|pfx)$/i.test(name);\n}
+const MAX_FILE_BYTES = 180_000;
+const BLOCKED_NAMES = new Set([".env", ".env.local", ".env.production", ".env.development", "credentials.json"]);
+
+function isBlockedPath(path) {\n  const name = path.split("/").at(-1).toLowerCase();\n  return BLOCKED_NAMES.has(name) || /\.(pem|key|p12|pfx)$/i.test(name);\n}
 
 function config() {
   const token = process.env.NAI_GITHUB_TOKEN;
@@ -10,7 +13,7 @@ function config() {
   return token;
 }
 function validatePath(path) {
-  if (typeof path !== "string" || !path || path.length > 250 || path.includes("\\") || path.startsWith("/") || path.split("/").some((p) => !p || p === "." || p === "..") || !ALLOWED.has(path.split("/")[0]) || /[\x00-\x1f]/.test(path)) {
+  if (path.length > 250 || path.includes("\\") || path.startsWith("/") || path.split("/").some((p) => !p || p === "." || p === "..") || !ALLOWED.has(path.split("/")[0]) || /[\x00-\x1f]/.test(path)) {
     throw Object.assign(new Error("Invalid or restricted repository path."), { status: 400 });
   }
   return path;
