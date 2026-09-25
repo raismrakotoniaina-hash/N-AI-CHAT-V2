@@ -45,6 +45,7 @@ function App() {
   const [developerFiles, setDeveloperFiles] = useState([]);
   const [developerError, setDeveloperError] = useState("");
   const [developerLoading, setDeveloperLoading] = useState(false);
+  const [developerAnalysis, setDeveloperAnalysis] = useState(null);
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -337,6 +338,42 @@ function App() {
     } finally {
       setDeveloperLoading(false);
       event.target.value = "";
+    }
+  };
+
+  const handleDeveloperAnalyze = async () => {
+    if (!developerFiles.length || developerLoading) return;
+
+    setDeveloperLoading(true);
+    setDeveloperError("");
+    setDeveloperAnalysis(null);
+
+    try {
+      const response = await fetch(apiUrl("/api/developer/analyze"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ files: developerFiles }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        setUser(null);
+        throw new Error("Session expirée. Veuillez vous reconnecter.");
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Tsy afaka manao analyse ny projet.");
+      }
+
+      setDeveloperAnalysis(data.analysis);
+      setCredits(data.credits ?? credits);
+    } catch (error) {
+      console.error("Developer analysis error:", error);
+      setDeveloperError(error.message || "Nisy olana tamin'ny analyse.");
+    } finally {
+      setDeveloperLoading(false);
     }
   };
 
@@ -706,49 +743,6 @@ function App() {
             <div className="feature-icon">🧑‍💻</div>
             <div>
               <h1>Projet développeur</h1>
-              <p>Amboary, diniho ary fantaro ny projet-nao miaraka amin'i N-AI.</p>
-            </div>
-          </div>
-          <div className="feature-card">
-            <h2>Atomboka amin'ny projet-nao</h2>
-            <p>
-              Ity toerana ity dia natao ho an'ny développeur rehetra. Tsy mahazo miditra amin'ny repository anatiny an'i N-AI ny mpampiasa.
-            </p>
-            <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
-              <button className="feature-button" type="button" onClick={() => setMessage("Ampio aho handinika ity projet ity: ")}>
-                📂 Hampiditra projet
-              </button>
-              <button className="secondary-button" type="button" onClick={() => setMessage("Ampifandraiso amin'ny GitHub ny projet-ko: ")}>
-                🔗 Ampifandraiso GitHub
-              </button>
-              <button className="secondary-button" type="button" onClick={() => {
-                setMessage("Manampia ahy hitady sy hanamboatra bug ao amin'ny code-ko.");
-                setCurrentPage("chat");
-              }}>
-                🐛 Mitadiava bug
-              </button>
-              <button className="secondary-button" type="button" onClick={() => {
-                setMessage("Hazavao amiko ny structure sy ny fonctionnement an'ity projet ity.");
-                setCurrentPage("chat");
-              }}>
-                🧠 Analyse ny projet
-              </button>
-            </div>
-            <p style={{ marginTop: 16, opacity: 0.75 }}>
-              GitHub sy upload tena izy dia hampifandraisina amin'ity Developer Engine ity amin'ny dingana manaraka.
-            </p>
-          </div>
-        </main>
-      );
-    }
-
-    if (currentPage === "developer") {
-      return (
-        <main className="feature-page">
-          <div className="feature-header">
-            <div className="feature-icon">🧑‍💻</div>
-            <div>
-              <h1>Projet développeur</h1>
               <p>Ampidiro ny projet-nao dia afaka manampy anao hamaky sy handinika azy i N-AI.</p>
             </div>
           </div>
@@ -793,15 +787,20 @@ function App() {
             <button
               className="feature-button"
               type="button"
-              disabled={!developerFiles.length}
-              onClick={() => {
-                setMessage("Diniho ireto fichiers projet-ko ireto ary lazao amiko ny bugs, risques ary fanatsarana tokony hatao.");
-                setCurrentPage("chat");
-              }}
+              disabled={!developerFiles.length || developerLoading}
+              onClick={handleDeveloperAnalyze}
               style={{ marginTop: 12 }}
             >
-              🧠 Ampanadihady amin'i N-AI
+              {developerLoading ? "🧠 Mandinika..." : "🧠 Ampanadihady amin'i N-AI — 8 crédits"}
             </button>
+            {developerAnalysis && (
+              <div style={{ marginTop: 16 }}>
+                <strong>Résultat de l'analyse</strong>
+                <pre style={{ whiteSpace: "pre-wrap", overflowX: "auto", marginTop: 10 }}>
+                  {JSON.stringify(developerAnalysis, null, 2)}
+                </pre>
+              </div>
+            )}
           </div>
         </main>
       );
