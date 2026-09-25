@@ -40,6 +40,7 @@ function App() {
   const [repositoryFile, setRepositoryFile] = useState(null);
   const [repositoryLoading, setRepositoryLoading] = useState(false);
   const [repositoryError, setRepositoryError] = useState("");
+  const [isRepositoryOwner, setIsRepositoryOwner] = useState(false);
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -138,6 +139,7 @@ function App() {
           if (data.user) {
             setUser(data.user);
             setCredits(data.user.credits ?? 0);
+            setIsRepositoryOwner(Boolean(data.user.isRepositoryOwner));
           }
         }
       } catch (error) {
@@ -185,6 +187,7 @@ function App() {
   const handleAuthenticated = (account) => {
     setUser(account);
     setCredits(account.credits ?? 0);
+    setIsRepositoryOwner(Boolean(account.isRepositoryOwner));
     setCurrentPage("chat");
   };
 
@@ -200,6 +203,7 @@ function App() {
 
     setUser(null);
     setCredits(0);
+    setIsRepositoryOwner(false);
     setMessages([]);
     localStorage.removeItem(STORAGE_KEY);
   };
@@ -597,6 +601,10 @@ function App() {
       return renderPlans();
     }
 
+    if (currentPage === "repository" && !isRepositoryOwner) {
+      return <main className="feature-page"><div className="feature-card"><h2>Accès réservé</h2><p>Cette section est réservée à l’administrateur.</p></div></main>;
+    }
+
     if (currentPage === "repository") {
       return (
         <main className="feature-page">
@@ -686,9 +694,9 @@ function App() {
             >
               Alefa amin'ny Coding IA — 8 crédits
             </button>
-            <button className="secondary-button" type="button" onClick={() => { setCurrentPage("repository"); loadRepository(""); }} style={{ marginTop: 10 }}>
-              📁 Sokafy ny Repository
-            </button>
+            {isRepositoryOwner && <button className="secondary-button" type="button" onClick={() => { setCurrentPage("repository"); loadRepository(""); }} style={{ marginTop: 10 }}>
+              🔐 Repository N-AI (Admin)
+            </button>}
           </div>
         </main>
       );
