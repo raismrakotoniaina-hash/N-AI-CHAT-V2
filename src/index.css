@@ -1632,3 +1632,41 @@ button:disabled {
   color: #d9e8ff;
   background: rgba(84, 133, 255, 0.08);
 }
+
+.memory-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.memory-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.memory-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+}
+
+.memory-item > div {
+  min-width: 0;
+}
+
+.memory-item strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.memory-item small {
+  display: block;
+  margin-top: 5px;
+  opacity: .65;
+}
