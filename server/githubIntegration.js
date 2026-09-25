@@ -1,7 +1,7 @@
 const API = "https://api.github.com";
 const OWNER = "raismrakotoniaina-hash";
 const REPO = "N-AI-CHAT-V2";
-const ALLOWED = new Set(["src", "server", "public", "docs"]);
+const ALLOWED = new Set(["src", "server", "public", "docs"]);\nconst ALLOWED_ROOT_FILES = new Set(["index.html", "package.json", "vite.config.js", "README.md"]);
 const MAX_FILE_BYTES = 180_000;
 const BLOCKED_NAMES = new Set([".env", ".env.local", ".env.production", ".env.development", "credentials.json"]);
 
