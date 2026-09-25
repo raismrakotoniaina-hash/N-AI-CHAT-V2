@@ -25,38 +25,45 @@ function App() {
   const [paymentLoading, setPaymentLoading] = useState("");
   const [paymentError, setPaymentError] = useState("");
   const [paymentHistory, setPaymentHistory] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   useEffect(() => {
+    setHistoryLoaded(false);
+
     try {
       const key = user?.id
-        ? `${STORAGE_KEY}-${user.id}`
+        ? STORAGE_KEY + "-" + user.id
         : STORAGE_KEY;
 
       const saved = localStorage.getItem(key);
 
       if (saved) {
         const parsed = JSON.parse(saved);
-
-        if (Array.isArray(parsed)) {
-          setMessages(parsed);
-        }
+        setMessages(Array.isArray(parsed) ? parsed : []);
+      } else {
+        setMessages([]);
       }
     } catch (error) {
       console.error("Erreur chargement historique:", error);
+      setMessages([]);
+    } finally {
+      setHistoryLoaded(true);
     }
   }, [user?.id]);
 
   useEffect(() => {
+    if (!historyLoaded) return;
+
     try {
       const key = user?.id
-        ? `${STORAGE_KEY}-${user.id}`
+        ? STORAGE_KEY + "-" + user.id
         : STORAGE_KEY;
 
       localStorage.setItem(key, JSON.stringify(messages));
     } catch (error) {
       console.error("Erreur sauvegarde historique:", error);
     }
-  }, [messages, user?.id]);
+  }, [messages, user?.id, historyLoaded]);
 
   useEffect(() => {
     const checkAuth = async () => {
