@@ -2,7 +2,7 @@ const API = "https://api.github.com";
 const OWNER = "raismrakotoniaina-hash";
 const REPO = "N-AI-CHAT-V2";
 const ALLOWED = new Set(["src", "server", "public", "docs"]);
-const MAX_FILE_BYTES = 180_000;
+const MAX_FILE_BYTES = 180_000;\nconst BLOCKED_NAMES = new Set([".env", ".env.local", ".env.production", ".env.development", "credentials.json"]);\n\nfunction isBlockedPath(path) {\n  const name = path.split("/").at(-1).toLowerCase();\n  return BLOCKED_NAMES.has(name) || /\\.(pem|key|p12|pfx)$/i.test(name);\n}
 
 function config() {
   const token = process.env.NAI_GITHUB_TOKEN;
@@ -34,7 +34,7 @@ export async function listRepository(path = "") {
   if (path) validatePath(path);
   const data = await github("/contents/" + path.split("/").map(encodeURIComponent).join("/") + "?ref=main");
   if (!Array.isArray(data)) throw Object.assign(new Error("Not a directory."), { status: 400 });
-  return data.filter((item) => item.type === "dir" || (item.type === "file" && item.size <= MAX_FILE_BYTES)).map(({ name, path, type, size, sha }) => ({ name, path, type, size, sha }));
+  return data.filter((item) => item.type === "dir" || (item.type === "file" && item.size <= MAX_FILE_BYTES && !isBlockedPath(item.path))).map(({ name, path, type, size, sha }) => ({ name, path, type, size, sha }));
 }
 export async function readRepositoryFile(path) {
   validatePath(path);
