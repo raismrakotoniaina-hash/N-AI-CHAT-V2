@@ -311,6 +311,10 @@ function App() {
     if (action === "research") {
       setCurrentPage("research");
     }
+
+    if (action === "coding") {
+      setCurrentPage("coding");
+    }
   };
 
   const handleNewChat = () => {
@@ -411,6 +415,41 @@ function App() {
   const renderPage = () => {
     if (currentPage === "plans") {
       return renderPlans();
+    }
+
+    if (currentPage === "coding") {
+      return (
+        <main className="feature-page">
+          <div className="feature-header">
+            <div className="feature-icon">💻</div>
+            <div>
+              <h1>Coding IA</h1>
+              <p>Manontania momba ny code na asa development.</p>
+            </div>
+          </div>
+          <div className="feature-card">
+            <h2>Inona no code tianao hatao?</h2>
+            <textarea
+              className="feature-input"
+              placeholder="Ohatra: Mamoròna formulaire React misy validation..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+            <button
+              className="feature-button"
+              type="button"
+              onClick={() => {
+                if (message.trim()) {
+                  setCurrentPage("chat");
+                  handleSend("coding");
+                }
+              }}
+            >
+              Alefa amin'ny Coding IA — 8 crédits
+            </button>
+          </div>
+        </main>
+      );
     }
 
     if (currentPage === "image") {
