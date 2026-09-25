@@ -226,7 +226,7 @@ function App() {
     }
   };
 
-  const handleSend = async () => {
+  const handleSend = async (operation = "chat") => {
     const text = message.trim();
 
     if (!text || loading) {
@@ -254,6 +254,7 @@ function App() {
         credentials: "include",
         body: JSON.stringify({
           messages: updatedMessages,
+          operation,
         }),
       });
 
@@ -480,6 +481,7 @@ function App() {
               onClick={() => {
                 if (message.trim()) {
                   setCurrentPage("chat");
+                  handleSend("research");
                 }
               }}
             >
