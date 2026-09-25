@@ -16,10 +16,11 @@ export async function initStorage() {
     await pool.query("CREATE TABLE IF NOT EXISTS nai_collections (name TEXT PRIMARY KEY, data JSONB NOT NULL)");
     await pool.query("INSERT INTO nai_collections (name, data) VALUES ('users','[]'::jsonb) ON CONFLICT (name) DO NOTHING");
     await pool.query("INSERT INTO nai_collections (name, data) VALUES ('payments','[]'::jsonb) ON CONFLICT (name) DO NOTHING");
+    await pool.query("INSERT INTO nai_collections (name, data) VALUES ('memories','[]'::jsonb) ON CONFLICT (name) DO NOTHING");
     return;
   }
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  for (const file of ["users.json", "payments.json"]) {
+  for (const file of ["users.json", "payments.json", "memories.json"]) {
     const target = path.join(DATA_DIR, file);
     if (!fs.existsSync(target)) fs.writeFileSync(target, "[]", "utf8");
   }
