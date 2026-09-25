@@ -7,7 +7,7 @@ import rateLimit from "express-rate-limit";
 import { registerUser, loginUser, getUserByToken, attachSession, removeSession, spendCredits, addCredits, setUserPlan } from "./authStore.js";
 import { initStorage, getCollection, setCollection } from "./storage.js";
 import { listMemories, createMemory, updateMemory, deleteMemory, clearMemories } from "./memoryStore.js";
-import { listRepository, readRepositoryFile, proposeChange } from "./githubIntegration.js";
+import { listRepository, readRepositoryFile, proposeChange, analyzeRepositorySnapshot } from "./githubIntegration.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -201,6 +201,13 @@ app.get("/api/github/file", async (req, res) => {
   if (!await requireRepositoryOwner(req, res)) return;
   try { res.json({ success: true, file: await readRepositoryFile(req.query.path) }); }
   catch (error) { githubError(res, error); }
+});
+app.post("/api/github/analyze", async (req, res) => {
+  if (!await requireRepositoryOwner(req, res)) return;
+  try {
+    const entries = await listRepository(req.body?.path || "");
+    res.json({ success: true, analysis: analyzeRepositorySnapshot(entries), path: req.body?.path || "" });
+  } catch (error) { githubError(res, error); }
 });
 app.post("/api/github/propose", async (req, res) => {
   if (!await requireRepositoryOwner(req, res)) return;
