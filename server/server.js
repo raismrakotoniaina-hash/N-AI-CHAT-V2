@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import { registerUser, loginUser, getUserByToken, attachSession, removeSession, spendCredits, addCredits, setUserPlan } from "./authStore.js";
 import { initStorage, getCollection, setCollection } from "./storage.js";
 import { listMemories, createMemory, updateMemory, deleteMemory, clearMemories } from "./memoryStore.js";
+import { listRepository, readRepositoryFile, proposeChange } from "./githubIntegration.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -174,6 +175,39 @@ app.delete("/api/memories", async (req, res) => {
   if (!user) return;
   const deleted = await clearMemories(user.id);
   res.json({ success: true, deleted });
+});
+
+// Owner-only GitHub tools. Never expose the GitHub token to the browser.
+async function requireRepositoryOwner(req, res) {
+  const user = await requireUser(req, res);
+  if (!user) return null;
+  const ownerEmail = (process.env.NAI_GITHUB_OWNER_EMAIL || "").trim().toLowerCase();
+  if (!ownerEmail || user.email?.trim().toLowerCase() !== ownerEmail) {
+    res.status(403).json({ success: false, error: "Repository access is restricted to the configured owner." });
+    return null;
+  }
+  return user;
+}
+function githubError(res, error) {
+  console.error("GitHub integration:", error.message);
+  res.status([400, 403, 404, 409, 503].includes(error.status) ? error.status : 502).json({ success: false, error: error.message });
+}
+app.get("/api/github/files", async (req, res) => {
+  if (!await requireRepositoryOwner(req, res)) return;
+  try { res.json({ success: true, files: await listRepository(req.query.path || "") }); }
+  catch (error) { githubError(res, error); }
+});
+app.get("/api/github/file", async (req, res) => {
+  if (!await requireRepositoryOwner(req, res)) return;
+  try { res.json({ success: true, file: await readRepositoryFile(req.query.path) }); }
+  catch (error) { githubError(res, error); }
+});
+app.post("/api/github/propose", async (req, res) => {
+  if (!await requireRepositoryOwner(req, res)) return;
+  try {
+    const result = await proposeChange(req.body || {});
+    res.status(201).json({ success: true, ...result });
+  } catch (error) { githubError(res, error); }
 });
 
 app.get("/api/credits", async (req, res) => {
