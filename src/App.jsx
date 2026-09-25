@@ -30,6 +30,11 @@ function App() {
   const [conversations, setConversations] = useState([]);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState(null);
+  const [memories, setMemories] = useState([]);
+  const [memoryLoading, setMemoryLoading] = useState(false);
+  const [memoryError, setMemoryError] = useState("");
+  const [memoryDraft, setMemoryDraft] = useState("");
+  const [memoryCategory, setMemoryCategory] = useState("general");
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -182,6 +187,82 @@ function App() {
 
     loadPaymentHistory();
   }, [user, currentPage]);
+
+  useEffect(() => {
+    if (!user || currentPage !== "memory") return;
+
+    const loadMemories = async () => {
+      setMemoryLoading(true);
+      setMemoryError("");
+      try {
+        const response = await fetch(apiUrl("/api/memories"), {
+          credentials: "include",
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || "Tsy afaka naka ny mémoire.");
+        }
+        setMemories(Array.isArray(data.memories) ? data.memories : []);
+      } catch (error) {
+        console.error("Memory load error:", error);
+        setMemoryError(error.message || "Nisy olana tamin'ny mémoire.");
+      } finally {
+        setMemoryLoading(false);
+      }
+    };
+
+    loadMemories();
+  }, [user, currentPage]);
+
+  const handleAddMemory = async () => {
+    const content = memoryDraft.trim();
+    if (!content || memoryLoading) return;
+
+    setMemoryLoading(true);
+    setMemoryError("");
+    try {
+      const response = await fetch(apiUrl("/api/memories"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ content, category: memoryCategory }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Tsy afaka mitahiry mémoire.");
+      }
+      setMemories((current) => [data.memory, ...current]);
+      setMemoryDraft("");
+    } catch (error) {
+      console.error("Memory create error:", error);
+      setMemoryError(error.message || "Nisy olana tamin'ny fitahirizana.");
+    } finally {
+      setMemoryLoading(false);
+    }
+  };
+
+  const handleDeleteMemory = async (id) => {
+    if (memoryLoading) return;
+
+    setMemoryLoading(true);
+    setMemoryError("");
+    try {
+      const response = await fetch(apiUrl(`/api/memories/${encodeURIComponent(id)}`), {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Tsy afaka mamafa mémoire.");
+      }
+      setMemories((current) => current.filter((item) => item.id !== id));
+    } catch (error) {
+      console.error("Memory delete error:", error);
+      setMemoryError(error.message || "Nisy olana tamin'ny famafana.");
+    } finally {
+      setMemoryLoading(false);
+    }
+  };
 
   const handleNavigate = (page) => {
     setCurrentPage(page);
@@ -598,7 +679,6 @@ function App() {
         <main className="feature-page">
           <div className="feature-header">
             <div className="feature-icon">🧠</div>
-
             <div>
               <h1>{t("memory")}</h1>
               <p>{t("memoryDesc")}</p>
@@ -607,16 +687,68 @@ function App() {
 
           <div className="feature-card">
             <h2>{t("memoryTitle")}</h2>
-
             <p>{t("memoryDesc")}</p>
 
-            <div className="memory-empty">
-              <span>🧠</span>
-
-              <strong>{t("noMemory")}</strong>
-
-              <small>{t("memorySoon")}</small>
+            <div className="memory-form">
+              <textarea
+                className="feature-input"
+                placeholder="Ohatra: Tiako ny valiny amin'ny teny Malagasy."
+                value={memoryDraft}
+                onChange={(e) => setMemoryDraft(e.target.value)}
+              />
+              <select
+                className="setting-select"
+                value={memoryCategory}
+                onChange={(e) => setMemoryCategory(e.target.value)}
+              >
+                <option value="general">Ankapobeny</option>
+                <option value="preference">Préférence</option>
+                <option value="profile">Mombamomba ahy</option>
+                <option value="project">Projet</option>
+              </select>
+              <button
+                className="feature-button"
+                type="button"
+                disabled={!memoryDraft.trim() || memoryLoading}
+                onClick={handleAddMemory}
+              >
+                {memoryLoading ? "Miandry..." : "💾 Tehirizo ny mémoire"}
+              </button>
             </div>
+
+            {memoryError && <div className="auth-error" style={{ marginTop: 12 }}>{memoryError}</div>}
+
+            {memoryLoading && memories.length === 0 ? (
+              <div className="memory-empty">
+                <span>🧠</span>
+                <strong>Fakàna mémoire...</strong>
+              </div>
+            ) : memories.length === 0 ? (
+              <div className="memory-empty">
+                <span>🧠</span>
+                <strong>{t("noMemory")}</strong>
+                <small>Ampio mémoire voalohany etsy ambony.</small>
+              </div>
+            ) : (
+              <div className="memory-list">
+                {memories.map((item) => (
+                  <div className="memory-item" key={item.id}>
+                    <div>
+                      <strong>{item.content}</strong>
+                      <small>{item.category} · {new Date(item.updatedAt).toLocaleString("fr-FR")}</small>
+                    </div>
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      disabled={memoryLoading}
+                      onClick={() => handleDeleteMemory(item.id)}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </main>
       );
