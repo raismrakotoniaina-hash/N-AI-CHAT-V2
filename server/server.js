@@ -432,7 +432,7 @@ app.post("/api/developer/github-patch-preview", async (req, res) => {
     let selectedPath = path;
     if (!selectedPath) {
       const treeResponse = await fetch(
-        \`https://api.github.com/repos/\${encodeURIComponent(owner)}/\${encodeURIComponent(repo)}/git/trees/\${encodeURIComponent(branch)}?recursive=1\`,
+        `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
         { headers }
       );
       if (treeResponse.ok) {
@@ -456,7 +456,7 @@ app.post("/api/developer/github-patch-preview", async (req, res) => {
 
         for (const candidate of sourceCandidates) {
           const candidateResponse = await fetch(
-            \`https://api.github.com/repos/\${encodeURIComponent(owner)}/\${encodeURIComponent(repo)}/contents/\${candidate.split("/").map(encodeURIComponent).join("/")}?ref=\${encodeURIComponent(branch)}\`,
+            `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${candidate.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
             { headers }
           );
           if (!candidateResponse.ok) continue;
