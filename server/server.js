@@ -240,6 +240,114 @@ app.post("/api/github/propose", async (req, res) => {
   } catch (error) { githubError(res, error); }
 });
 
+app.post("/api/developer/github-analyze", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+
+    const repositoryUrl = String(req.body?.repositoryUrl || "").trim();
+    let parsed;
+    try {
+      parsed = new URL(repositoryUrl);
+    } catch {
+      return res.status(400).json({ success: false, error: "GitHub URL invalide." });
+    }
+
+    if (parsed.protocol !== "https:" || parsed.hostname.toLowerCase() !== "github.com") {
+      return res.status(400).json({ success: false, error: "Ampiasao URL github.com public repository." });
+    }
+
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    if (parts.length !== 2 || parts.some((part) => !/^[A-Za-z0-9_.-]+$/.test(part))) {
+      return res.status(400).json({ success: false, error: "URL repository GitHub tsy mety." });
+    }
+
+    const [owner, repo] = parts;
+    const cost = CREDIT_COSTS.coding;
+    if (user.credits < cost) {
+      return res.status(402).json({
+        success: false,
+        error: "Tsy ampy ny crédit hanaovana analyse.",
+        credits: user.credits,
+        required: cost,
+      });
+    }
+
+    const headers = {
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "N-AI-Chat-V2",
+    };
+
+    const repoResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers });
+    if (!repoResponse.ok) {
+      return res.status(repoResponse.status === 404 ? 404 : 502).json({
+        success: false,
+        error: repoResponse.status === 404 ? "Repository public tsy hita." : "Tsy afaka mifandray amin'ny GitHub.",
+      });
+    }
+
+    const repoData = await repoResponse.json();
+    if (repoData.private) {
+      return res.status(403).json({ success: false, error: "Private repository: mbola mila GitHub App connection." });
+    }
+
+    const branch = repoData.default_branch || "main";
+    const treeResponse = await fetch(
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+      { headers }
+    );
+    if (!treeResponse.ok) {
+      return res.status(502).json({ success: false, error: "Tsy afaka namaky ny GitHub repository tree." });
+    }
+
+    const treeData = await treeResponse.json();
+    const blocked = /(^|\/)(\.env|\.env\.[^/]+|credentials\.json|id_rsa|id_ed25519)$/i;
+    const binary = /\.(png|jpe?g|gif|webp|ico|pdf|zip|tar|gz|7z|mp4|mov|avi|mp3|wav|woff2?|ttf|otf|pem|key|p12|pfx)$/i;
+    const candidates = (treeData.tree || [])
+      .filter((item) => item.type === "blob" && item.path && !blocked.test(item.path) && !binary.test(item.path))
+      .filter((item) => Number(item.size || 0) <= 180000)
+      .slice(0, 50);
+
+    const files = [];
+    let totalBytes = 0;
+    for (const item of candidates) {
+      if (totalBytes >= 4000000) break;
+      const fileResponse = await fetch(
+        `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${item.path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
+        { headers: { ...headers, Accept: "application/vnd.github.raw+json" } }
+      );
+      if (!fileResponse.ok) continue;
+      const content = await fileResponse.text();
+      const size = new TextEncoder().encode(content).length;
+      if (size > 180000 || totalBytes + size > 4000000) continue;
+      totalBytes += size;
+      files.push({ path: item.path, content, size, type: "text/plain" });
+    }
+
+    if (!files.length) {
+      return res.status(400).json({ success: false, error: "Tsy nahitana fichier texte azo dinihina." });
+    }
+
+    const analysis = await analyzeDeveloperProject(files);
+    const updatedUser = await spendCredits(user.id, cost, "coding");
+    if (!updatedUser) {
+      return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
+    }
+
+    res.json({
+      success: true,
+      repository: { owner, repo, branch, files: files.length },
+      analysis,
+      credits: updatedUser.credits,
+      creditsUsed: cost,
+    });
+  } catch (error) {
+    console.error("GitHub project analysis error:", error);
+    res.status(400).json({ success: false, error: error.message || "GitHub project analysis failed." });
+  }
+});
+
 app.post("/api/developer/analyze", async (req, res) => {
   try {
     const user = await requireUser(req, res);
