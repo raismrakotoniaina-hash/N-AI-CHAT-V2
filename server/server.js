@@ -410,7 +410,7 @@ app.post("/api/developer/github-patch-preview", async (req, res) => {
     if (parts.length !== 2 || parts.some((part) => !/^[A-Za-z0-9_.-]+$/.test(part))) {
       return res.status(400).json({ success: false, error: "URL repository GitHub tsy mety." });
     }
-    if (!path || path.startsWith("/") || path.includes("..") || /(^|\/)(\.env|\.env\.[^/]+|credentials\.json|id_rsa|id_ed25519)$/i.test(path)) {
+    if (path && (path.startsWith("/") || path.includes("..") || /(^|\/)(\.env|\.env\.[^/]+|credentials\.json|id_rsa|id_ed25519)$/i.test(path))) {
       return res.status(400).json({ success: false, error: "Fichier tsy azo ovaina." });
     }
 
@@ -427,19 +427,72 @@ app.post("/api/developer/github-patch-preview", async (req, res) => {
     if (repoData.private) return res.status(403).json({ success: false, error: "Private repository: mbola mila GitHub App connection." });
 
     const branch = repoData.default_branch || "main";
+
+    // If the frontend did not receive a finding path, choose the matching source file here.
+    let selectedPath = path;
+    if (!selectedPath) {
+      const treeResponse = await fetch(
+        \`https://api.github.com/repos/\${encodeURIComponent(owner)}/\${encodeURIComponent(repo)}/git/trees/\${encodeURIComponent(branch)}?recursive=1\`,
+        { headers }
+      );
+      if (treeResponse.ok) {
+        const treeData = await treeResponse.json().catch(() => ({}));
+        const candidates = Array.isArray(treeData.tree)
+          ? treeData.tree
+              .filter((item) => item?.type === "blob" && typeof item.path === "string")
+              .map((item) => item.path)
+              .filter((item) => !/(^|\/)(node_modules|dist|build|\.git)\//.test(item))
+              .filter((item) => !/(^|\/)(\.env|\.env\.[^/]+|credentials\.json|id_rsa|id_ed25519)$/i.test(item))
+              .filter((item) => !/\.(png|jpe?g|gif|webp|ico|pdf|zip|tar|gz|7z|mp4|mov|avi|mp3|wav|woff2?|ttf|otf)$/i.test(item))
+              .slice(0, 40)
+          : [];
+
+        const area = String(finding.area || "").toLowerCase();
+        const message = String(finding.message || "").toLowerCase();
+        const matchPattern = area === "quality" || message.includes("console.log")
+          ? /\.(js|jsx|ts|tsx|mjs|cjs|vue|svelte|py|php|java|go|rs)$/i
+          : /\.(js|jsx|ts|tsx|mjs|cjs|vue|svelte|py|php|java|go|rs|json|css|html)$/i;
+        const sourceCandidates = candidates.filter((item) => matchPattern.test(item));
+
+        for (const candidate of sourceCandidates) {
+          const candidateResponse = await fetch(
+            \`https://api.github.com/repos/\${encodeURIComponent(owner)}/\${encodeURIComponent(repo)}/contents/\${candidate.split("/").map(encodeURIComponent).join("/")}?ref=\${encodeURIComponent(branch)}\`,
+            { headers }
+          );
+          if (!candidateResponse.ok) continue;
+          const candidateContent = await candidateResponse.text();
+          const matches = area === "quality" || message.includes("console.log")
+            ? /console\.log\s*\(/.test(candidateContent)
+            : area === "code" || message.includes("todo") || message.includes("fixme") || message.includes("xxx")
+              ? /TODO|FIXME|XXX/i.test(candidateContent)
+              : area === "security" || message.includes("secret") || message.includes("token")
+                ? /(api[_-]?key|secret|password|token)\s*[:=]\s*["'][^"']{8,}["']/i.test(candidateContent)
+                : /TODO|FIXME|XXX/i.test(candidateContent);
+          if (matches) {
+            selectedPath = candidate;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!selectedPath) {
+      return res.status(400).json({ success: false, error: "Tsy nahita fichier mifanaraka amin'ilay finding. Safidio aloha ny fichier." });
+    }
+
     const fileResponse = await fetch(
-      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${selectedPath.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
       { headers }
     );
     if (!fileResponse.ok) return res.status(404).json({ success: false, error: "Fichier tsy hita ao amin'ny repository." });
 
     const currentContent = await fileResponse.text();
-    const patch = await generateDeveloperPatch({ path, content: currentContent, finding });
+    const patch = await generateDeveloperPatch({ path: selectedPath, content: currentContent, finding });
 
     res.json({
       success: true,
       repository: { owner, repo, branch },
-      file: { path, content: currentContent },
+      file: { path: selectedPath, content: currentContent },
       patch,
       message: patch.changed
         ? "Patch voaomana. Jereo aloha ny code ary manaova approval vao mamorona Pull Request."
