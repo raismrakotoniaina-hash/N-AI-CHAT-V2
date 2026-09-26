@@ -55,6 +55,8 @@ function App() {
   const [developerPatchApproved, setDeveloperPatchApproved] = useState(false);
   const [developerPatchLoading, setDeveloperPatchLoading] = useState(false);
   const [developerPatchResult, setDeveloperPatchResult] = useState(null);
+  const [developerChecks, setDeveloperChecks] = useState(null);
+  const [developerChecksLoading, setDeveloperChecksLoading] = useState(false);
   const [githubProjectUrl, setGithubProjectUrl] = useState("");
   const [githubProjectLoading, setGithubProjectLoading] = useState(false);
   const [developerAutoPatchLoading, setDeveloperAutoPatchLoading] = useState(false);
@@ -426,11 +428,36 @@ function App() {
     }
   };
 
+  const handleDeveloperChecks = async () => {
+    if (!developerPatchResult?.pullRequest?.number || developerChecksLoading) return;
+    setDeveloperChecksLoading(true);
+    setDeveloperError("");
+    try {
+      const response = await fetch(apiUrl("/api/developer/github-checks"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          repositoryUrl: githubProjectUrl.trim(),
+          pullRequestNumber: developerPatchResult.pullRequest.number,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) throw new Error(data.error || "GitHub Checks tsy azo vakiana.");
+      setDeveloperChecks(data);
+    } catch (error) {
+      setDeveloperError(error.message || "GitHub Checks error.");
+    } finally {
+      setDeveloperChecksLoading(false);
+    }
+  };
+
   const handleDeveloperPatch = async () => {
     if (!githubProjectUrl.trim() || !developerPatchPath.trim() || !developerPatchContent || !developerPatchApproved || developerPatchLoading) return;
     setDeveloperPatchLoading(true);
     setDeveloperError("");
     setDeveloperPatchResult(null);
+    setDeveloperChecks(null);
     try {
       const response = await fetch(apiUrl("/api/developer/github-propose"), {
         method: "POST",
@@ -1069,6 +1096,22 @@ function App() {
                   <div className="auth-success" style={{ marginTop: 12 }}>
                     ✅ Pull Request voaforona — #{developerPatchResult.pullRequest?.number}
                     {developerPatchResult.pullRequest?.url && <div><a href={developerPatchResult.pullRequest.url} target="_blank" rel="noreferrer">Hijery ny Pull Request</a></div>}
+                    <div style={{ marginTop: 10 }}>
+                      <button className="secondary-button" type="button" onClick={handleDeveloperChecks} disabled={developerChecksLoading}>
+                        {developerChecksLoading ? "Miandry GitHub..." : "🔄 Hamarino GitHub Checks"}
+                      </button>
+                      {developerChecks && (
+                        <div style={{ marginTop: 8 }}>
+                          <strong>{developerChecks.state === "success" ? "✅ Tafita ny checks" : developerChecks.state === "failure" ? "❌ Misy check tsy tafita" : developerChecks.state === "pending" ? "⏳ Mbola mandeha ny checks" : "ℹ️ Tsy misy checks napetraka"}</strong>
+                          {(developerChecks.checks || []).map((check, index) => (
+                            <div key={index} style={{ marginTop: 6 }}>
+                              {check.conclusion === "success" ? "✅" : check.conclusion === "failure" ? "❌" : "⏳"} {check.name}
+                              {check.url && <a href={check.url} target="_blank" rel="noreferrer" style={{ marginLeft: 8 }}>Hijery</a>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
