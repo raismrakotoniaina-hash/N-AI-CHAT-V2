@@ -972,6 +972,7 @@ function App() {
                 </pre>
               </div>
             )}
+            </div>
           </div>
         </main>
       );
