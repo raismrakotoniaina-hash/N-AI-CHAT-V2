@@ -348,6 +348,102 @@ app.post("/api/developer/github-analyze", async (req, res) => {
   }
 });
 
+app.post("/api/developer/github-propose", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+
+    const repositoryUrl = String(req.body?.repositoryUrl || "").trim();
+    const path = String(req.body?.path || "").trim();
+    const content = String(req.body?.content ?? "");
+    const expectedSha = String(req.body?.expectedSha || "").trim();
+    const approved = req.body?.approved === true;
+
+    if (!approved) {
+      return res.status(400).json({ success: false, error: "Approval explicite ilaina alohan'ny Pull Request." });
+    }
+
+    let parsed;
+    try { parsed = new URL(repositoryUrl); } catch {
+      return res.status(400).json({ success: false, error: "GitHub URL invalide." });
+    }
+    if (parsed.protocol !== "https:" || parsed.hostname.toLowerCase() !== "github.com") {
+      return res.status(400).json({ success: false, error: "Ampiasao URL github.com." });
+    }
+
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    if (parts.length !== 2 || parts.some((part) => !/^[A-Za-z0-9_.-]+$/.test(part))) {
+      return res.status(400).json({ success: false, error: "URL repository GitHub tsy mety." });
+    }
+    if (!path || path.startsWith("/") || path.includes("..") || /(^|\/)(\.env|\.env\.[^/]+|credentials\.json|id_rsa|id_ed25519)$/i.test(path)) {
+      return res.status(400).json({ success: false, error: "Fichier tsy azo ovaina." });
+    }
+    if (content.length > 180000) return res.status(400).json({ success: false, error: "Fichier lehibe loatra." });
+    if (!process.env.NAI_GITHUB_TOKEN) return res.status(503).json({ success: false, error: "GitHub write access tsy mbola voapetraka." });
+
+    const [owner, repo] = parts;
+    const apiHeaders = {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${process.env.NAI_GITHUB_TOKEN}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "N-AI-Chat-V2",
+    };
+
+    const repoResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers: apiHeaders });
+    if (!repoResponse.ok) return res.status(repoResponse.status === 404 ? 404 : 403).json({ success: false, error: "N-AI tsy manana write access amin'ity repository ity." });
+    const repoData = await repoResponse.json();
+    if (repoData.private) return res.status(403).json({ success: false, error: "Private repository mbola mila GitHub App connection." });
+
+    const branch = repoData.default_branch || "main";
+    const safeName = path.split("/").filter(Boolean).at(-1).replace(/[^A-Za-z0-9_.-]/g, "-");
+    const proposalBranch = `nai/patch-${Date.now()}-${safeName}`;
+
+    const branchRef = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/ref/heads/${encodeURIComponent(branch)}`, { headers: apiHeaders });
+    if (!branchRef.ok) return res.status(502).json({ success: false, error: "Tsy afaka mamaky ny branch fototra." });
+    const branchData = await branchRef.json();
+
+    const createBranch = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/refs`, {
+      method: "POST", headers: { ...apiHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ ref: `refs/heads/${proposalBranch}`, sha: branchData.object.sha }),
+    });
+    if (!createBranch.ok) {
+      const errorData = await createBranch.json().catch(() => ({}));
+      return res.status(502).json({ success: false, error: errorData.message || "Tsy afaka namorona patch branch." });
+    }
+
+    const fileResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`, { headers: apiHeaders });
+    if (!fileResponse.ok) return res.status(404).json({ success: false, error: "Fichier tsy hita ao amin'ny branch fototra." });
+    const fileData = await fileResponse.json();
+    if (expectedSha && fileData.sha !== expectedSha) return res.status(409).json({ success: false, error: "Niova ilay fichier. Avereno alaina aloha ny version vaovao." });
+
+    const updateResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path.split("/").map(encodeURIComponent).join("/")}`, {
+      method: "PUT", headers: { ...apiHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: `N-AI patch: ${path}`, content: Buffer.from(content, "utf8").toString("base64"), sha: fileData.sha, branch: proposalBranch }),
+    });
+    if (!updateResponse.ok) {
+      const errorData = await updateResponse.json().catch(() => ({}));
+      return res.status(502).json({ success: false, error: errorData.message || "Tsy afaka manoratra ny patch." });
+    }
+
+    const prResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls`, {
+      method: "POST", headers: { ...apiHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: `N-AI patch: ${path}`,
+        head: proposalBranch,
+        base: branch,
+        body: `Patch natolotry ny N-AI ho an'ny développeur.\n\nFichier: ${path}\nApproval: explicit developer approval.`,
+      }),
+    });
+    const prData = await prResponse.json().catch(() => ({}));
+    if (!prResponse.ok) return res.status(502).json({ success: false, error: prData.message || "Tsy afaka namorona Pull Request." });
+
+    res.json({ success: true, branch: proposalBranch, pullRequest: { number: prData.number, url: prData.html_url }, path, message: "Pull Request voaforona. Tsy niova mivantana ny main." });
+  } catch (error) {
+    console.error("Developer GitHub proposal error:", error);
+    res.status(500).json({ success: false, error: error.message || "GitHub proposal failed." });
+  }
+});
+
 app.post("/api/developer/analyze", async (req, res) => {
   try {
     const user = await requireUser(req, res);
