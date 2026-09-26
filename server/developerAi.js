@@ -114,6 +114,18 @@ function heuristic(files) {
       "Aza tehirizina ao amin'ny source code ny API keys sy secrets.",
       "Ampiasao ny package.json scripts sy lint/test rehefa misy.",
     ],
+    fixes: findings.map((item) => ({
+      area: item.area,
+      level: item.level,
+      action:
+        item.area === "project"
+          ? "Ampio na hamarino ny package.json sy ny scripts build/test."
+          : item.area === "quality"
+            ? "Jereo ireo console.log ary esory izay tsy ilaina amin'ny production."
+            : item.area === "security"
+              ? "Esory amin'ny source code ny secrets ary ampiasao environment variables."
+              : "Diniho ity finding ity alohan'ny fanovana.",
+    })),
     nextSteps: [
       "Ampifandraiso OpenAI billing raha mila semantic AI analysis.",
       "Avy eo afaka manolotra patch/diff voamarina i N-AI fa tsy manoratra mivantana.",
