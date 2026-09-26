@@ -57,6 +57,8 @@ function App() {
   const [developerPatchResult, setDeveloperPatchResult] = useState(null);
   const [githubProjectUrl, setGithubProjectUrl] = useState("");
   const [githubProjectLoading, setGithubProjectLoading] = useState(false);
+  const [developerAutoPatchLoading, setDeveloperAutoPatchLoading] = useState(false);
+  const [developerAutoPatch, setDeveloperAutoPatch] = useState(null);
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -386,6 +388,41 @@ function App() {
     } finally {
       setDeveloperLoading(false);
       event.target.value = "";
+    }
+  };
+
+  const handleDeveloperAutoPatch = async () => {
+    const repositoryUrl = githubProjectUrl.trim();
+    const path = developerPatchPath.trim();
+    const finding = Array.isArray(developerAnalysis?.findings) ? developerAnalysis.findings[0] : null;
+
+    if (!repositoryUrl || !path || !developerAnalysis || developerAutoPatchLoading) return;
+
+    setDeveloperAutoPatchLoading(true);
+    setDeveloperError("");
+    setDeveloperAutoPatch(null);
+
+    try {
+      const response = await fetch(apiUrl("/api/developer/github-patch-preview"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ repositoryUrl, path, finding }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Tsy afaka namorona patch automatique.");
+      }
+
+      setDeveloperAutoPatch(data.patch);
+      if (data.patch?.changed) {
+        setDeveloperPatchContent(data.patch.content || "");
+        setDeveloperPatchApproved(false);
+      }
+    } catch (error) {
+      setDeveloperError(error.message || "Automatic patch error.");
+    } finally {
+      setDeveloperAutoPatchLoading(false);
     }
   };
 
@@ -1002,6 +1039,24 @@ function App() {
                 <strong>🛠️ Patch / Pull Request</strong>
                 <p style={{ marginTop: 8 }}>Safidio ny fichier, ovay ny code, ary ny N-AI dia hamorona Pull Request ihany rehefa ekenao.</p>
                 <input className="feature-input" placeholder="Path fichier, ohatra: src/App.jsx" value={developerPatchPath} onChange={(e) => setDeveloperPatchPath(e.target.value)} style={{ marginTop: 10 }} />
+                <button
+                  className="feature-button"
+                  type="button"
+                  disabled={!githubProjectUrl.trim() || !developerPatchPath.trim() || developerAutoPatchLoading}
+                  onClick={handleDeveloperAutoPatch}
+                  style={{ marginTop: 10 }}
+                >
+                  {developerAutoPatchLoading ? "🧠 Mamorona patch..." : "🧠 Mamorona Patch automatique"}
+                </button>
+                {developerAutoPatch && (
+                  <div className="feature-card" style={{ marginTop: 12 }}>
+                    <strong>{developerAutoPatch.changed ? "✅ Patch voaomana" : "ℹ️ Tsy nisy patch natao"}</strong>
+                    <p style={{ marginTop: 6 }}>{developerAutoPatch.reason}</p>
+                    {developerAutoPatch.diff && (
+                      <pre style={{ whiteSpace: "pre-wrap", overflowX: "auto", marginTop: 10 }}>{developerAutoPatch.diff}</pre>
+                    )}
+                  </div>
+                )}
                 <textarea className="feature-input" placeholder="Apetraka eto ny version corrigée..." value={developerPatchContent} onChange={(e) => setDeveloperPatchContent(e.target.value)} style={{ marginTop: 10, minHeight: 220, fontFamily: "monospace" }} />
                 <label style={{ display: "block", marginTop: 10 }}>
                   <input type="checkbox" checked={developerPatchApproved} onChange={(e) => setDeveloperPatchApproved(e.target.checked)} />
