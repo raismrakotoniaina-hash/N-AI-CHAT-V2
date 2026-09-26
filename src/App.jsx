@@ -50,6 +50,8 @@ function App() {
   const [developerError, setDeveloperError] = useState("");
   const [developerLoading, setDeveloperLoading] = useState(false);
   const [developerAnalysis, setDeveloperAnalysis] = useState(null);
+  const [githubProjectUrl, setGithubProjectUrl] = useState("");
+  const [githubProjectLoading, setGithubProjectLoading] = useState(false);
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -415,6 +417,43 @@ function App() {
       setDeveloperError(error.message || "Nisy olana tamin'ny analyse.");
     } finally {
       setDeveloperLoading(false);
+    }
+  };
+
+  const handleGithubProjectAnalyze = async () => {
+    const repositoryUrl = githubProjectUrl.trim();
+    if (!repositoryUrl || githubProjectLoading) return;
+
+    setGithubProjectLoading(true);
+    setDeveloperError("");
+    setDeveloperAnalysis(null);
+
+    try {
+      const response = await fetch(apiUrl("/api/developer/github-analyze"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ repositoryUrl }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        setUser(null);
+        throw new Error("Session expirée. Veuillez vous reconnecter.");
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Tsy afaka mamaky ity GitHub repository ity.");
+      }
+
+      setDeveloperAnalysis(data.analysis);
+      setCredits(data.credits ?? credits);
+    } catch (error) {
+      console.error("GitHub project analysis error:", error);
+      setDeveloperError(error.message || "Nisy olana tamin'ny GitHub analyse.");
+    } finally {
+      setGithubProjectLoading(false);
     }
   };
 
@@ -858,8 +897,29 @@ function App() {
             </div>
           </div>
           <div className="feature-card">
-            <h2>📂 Ampidiro ny projet</h2>
-            <p>Ny fichiers ampidirina eto dia vakiana ao amin'ny navigateur aloha ary ampiasaina handinihana ny projet-nao.</p>
+            <h2>🔗 Analyse GitHub</h2>
+            <p>Apetraka eto ny URL an'ny <strong>public GitHub repository</strong>. Tsy mila token GitHub ny projet public.</p>
+            <input
+              className="feature-input"
+              type="url"
+              placeholder="https://github.com/user/projet"
+              value={githubProjectUrl}
+              onChange={(e) => setGithubProjectUrl(e.target.value)}
+              style={{ marginTop: 12 }}
+            />
+            <button
+              className="feature-button"
+              type="button"
+              disabled={!githubProjectUrl.trim() || githubProjectLoading}
+              onClick={handleGithubProjectAnalyze}
+              style={{ marginTop: 10 }}
+            >
+              {githubProjectLoading ? "🧠 Mamaky GitHub..." : "🧠 Diniho GitHub — 8 crédits"}
+            </button>
+
+            <div style={{ marginTop: 24, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 20 }}>
+              <h2>📂 Na ampidiro ny projet</h2>
+              <p>Ny fichiers ampidirina eto dia vakiana ao amin'ny navigateur aloha ary ampiasaina handinihana ny projet-nao.</p>
             <input
               type="file"
               multiple
