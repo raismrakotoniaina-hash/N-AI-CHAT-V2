@@ -286,7 +286,21 @@ app.post("/api/developer/github-analyze", async (req, res) => {
         : {}),
     };
 
-    const repoResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers });
+    let repoResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers });
+    // If the owner token cannot see the public repository (for example a stale
+    // fine-grained token), retry once without authentication. Public repositories
+    // must remain analyzable without a GitHub token.
+    if (repoResponse.status === 404 && isOwnRepository && process.env.NAI_GITHUB_TOKEN) {
+      const publicHeaders = {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "N-AI-Chat-V2",
+      };
+      repoResponse = await fetch(
+        `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+        { headers: publicHeaders }
+      );
+    }
     if (!repoResponse.ok) {
       const remaining = repoResponse.headers.get("x-ratelimit-remaining");
       const reset = repoResponse.headers.get("x-ratelimit-reset");
@@ -421,7 +435,13 @@ app.post("/api/developer/github-patch-preview", async (req, res) => {
       "User-Agent": "N-AI-Chat-V2",
     };
 
-    const repoResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers });
+    let repoResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers });
+    if (repoResponse.status === 404 && owner.toLowerCase() === "raismrakotoniaina-hash" && repo.toLowerCase() === "n-ai-chat-v2" && process.env.NAI_GITHUB_TOKEN) {
+      repoResponse = await fetch(
+        `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+        { headers: { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "N-AI-Chat-V2" } }
+      );
+    }
     if (!repoResponse.ok) return res.status(repoResponse.status === 404 ? 404 : 502).json({ success: false, error: "Repository public tsy hita." });
     const repoData = await repoResponse.json();
     if (repoData.private) return res.status(403).json({ success: false, error: "Private repository: mbola mila GitHub App connection." });
