@@ -1,7 +1,8 @@
 const API = "https://api.github.com";
 const OWNER = "raismrakotoniaina-hash";
 const REPO = "N-AI-CHAT-V2";
-const ALLOWED = new Set(["src", "server", "public", "docs"]);\nconst ALLOWED_ROOT_FILES = new Set(["index.html", "package.json", "vite.config.js", "README.md"]);
+const ALLOWED = new Set(["src", "server", "public", "docs"]);
+const ALLOWED_ROOT_FILES = new Set(["index.html", "package.json", "vite.config.js", "README.md"]);
 const MAX_FILE_BYTES = 180_000;
 const BLOCKED_NAMES = new Set([".env", ".env.local", ".env.production", ".env.development", "credentials.json"]);
 
@@ -16,7 +17,16 @@ function config() {
   return token;
 }
 function validatePath(path) {
-  if (path.length > 250 || path.includes("\\") || path.startsWith("/") || path.split("/").some((p) => !p || p === "." || p === "..") || !ALLOWED.has(path.split("/")[0]) || /[\x00-\x1f]/.test(path)) {
+  if (typeof path !== "string") {
+    throw Object.assign(new Error("Invalid repository path."), { status: 400 });
+  }
+  const parts = path.split("/");
+  const isRootFile = parts.length === 1 && ALLOWED_ROOT_FILES.has(path);
+  const isAllowedDirectory = parts.length > 1 && ALLOWED.has(parts[0]);
+  if (path.length > 250 || path.includes("\\") || path.startsWith("/") ||
+      parts.some((part) => !part || part === "." || part === "..") ||
+      (!isRootFile && !isAllowedDirectory) || /[\x00-\x1f]/.test(path) ||
+      isBlockedPath(path)) {
     throw Object.assign(new Error("Invalid or restricted repository path."), { status: 400 });
   }
   return path;
