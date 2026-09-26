@@ -135,7 +135,7 @@ function heuristic(files) {
 
 async function analyzeWithOpenAI(files) {
   const snapshot = files.map((file) => `FILE: ${file.path}\n${file.content}`).join("\n\n");
-  const prompt = `Diniho ity projet développeur ity. Valio amin'ny teny Malagasy ary JSON ihany miaraka amin'ny keys: summary, architecture, findings, securityRisks, improvements, nextSteps. Ny findings dia array misy level, area, path raha fantatra, ary message. Aza mamorona fichier na manova code. Ataovy mazava ny zavatra hitanao sy ny zavatra tsy azonao antoka.\\n\\n${snapshot}`;
+  const prompt = `Diniho ity projet développeur ity. Valio amin'ny teny Malagasy ary JSON ihany miaraka amin'ny keys: summary, architecture, findings, securityRisks, improvements, nextSteps. Ny findings dia array misy level, area, path raha fantatra, ary message. Aza mamorona fichier na manova code. Ataovy mazava ny zavatra hitanao sy ny zavatra tsy azonao antoka.\n\n${snapshot}`;
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -173,8 +173,7 @@ export async function analyzeDeveloperProject(input) {
   return analyzeWithOpenAI(files);
 }
 
-
-export function generateDeveloperPatch({ path, content, finding = {} }) {
+function localPatch({ path, content, finding = {} }) {
   const target = String(path || "").trim();
   const source = String(content ?? "");
   const area = String(finding.area || "").toLowerCase();
@@ -202,7 +201,7 @@ export function generateDeveloperPatch({ path, content, finding = {} }) {
       changed: true,
       reason: `Nesorina ${removed} console.log tsotra ho fanadiovana production.`,
       content: next,
-      diff: `- Nesorina ${removed} ligne console.log\\n+ Ny ambiny amin'ny fichier dia tsy novaina.`,
+      diff: `- Nesorina ${removed} ligne console.log\n+ Ny ambiny amin'ny fichier dia tsy novaina.`,
     };
   }
 
@@ -215,6 +214,88 @@ export function generateDeveloperPatch({ path, content, finding = {} }) {
   };
 }
 
+async function semanticPatch({ path, content, finding = {} }) {
+  const target = cleanPath(path);
+  const source = String(content ?? "");
+  if (!source) throw new Error("Fichier patch tsy mety.");
+
+  const prompt = `Ianao no Semantic Code Repair Engine an'ny N-AI. Mamorona patch azo antoka ho an'ny fichier iray, mifototra amin'ny finding. Aza manova zavatra tsy ilaina. Aza mamorona secrets. Aza manova API keys na credentials. Raha tsy azo antoka ny fanitsiana dia avereno changed=false.
+
+Valio JSON ihany:
+{
+  "changed": true,
+  "reason": "fanazavana fohy amin'ny teny Malagasy",
+  "content": "FENO ny fichier voahitsy",
+  "diff": "famintinana fohy ny fanovana",
+  "confidence": 0.0
+}
+
+Path: ${target}
+Finding:
+${JSON.stringify(finding)}
+
+Fichier ankehitriny:
+${source}`;
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
+      input: [{ role: "user", content: prompt }],
+      max_output_tokens: 30000,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "Semantic patch request failed.");
+  }
+
+  const raw = String(data.output_text || "").trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Semantic AI namaly tsy JSON; tsy natao ny patch.");
+  }
+
+  const nextContent = typeof parsed.content === "string" ? parsed.content : "";
+  const changed = parsed.changed === true && nextContent && nextContent !== source;
+  const confidence = Number(parsed.confidence);
+
+  if (!changed) {
+    return {
+      mode: "openai",
+      changed: false,
+      reason: parsed.reason || "Tsy nahita fanitsiana azo antoka ny Semantic AI.",
+      content: source,
+      diff: parsed.diff || "",
+      confidence: Number.isFinite(confidence) ? confidence : 0,
+    };
+  }
+
+  if (nextContent.length > MAX_FILE_BYTES) {
+    throw new Error("Semantic patch lehibe loatra; tsy nekena.");
+  }
+
+  return {
+    mode: "openai",
+    changed: true,
+    reason: parsed.reason || "Patch semantic voaomana.",
+    content: nextContent,
+    diff: parsed.diff || "Nisy fanovana semantic tao amin'ny fichier.",
+    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
+  };
+}
+
+export async function generateDeveloperPatch(input) {
+  if (!process.env.OPENAI_API_KEY) return localPatch(input);
+  return semanticPatch(input);
+}
 
 export const DEVELOPER_LIMITS = {
   maxFiles: MAX_FILES,
