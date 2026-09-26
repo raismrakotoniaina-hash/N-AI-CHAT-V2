@@ -403,7 +403,7 @@ function App() {
         : null);
     const path = developerPatchPath.trim() || finding?.path || "";
 
-    if (!repositoryUrl || !path || !developerAnalysis || developerAutoPatchLoading) return;
+    if (!repositoryUrl || !developerAnalysis || developerAutoPatchLoading) return;
 
     setDeveloperAutoPatchLoading(true);
     setDeveloperError("");
@@ -424,6 +424,10 @@ function App() {
       }
 
       setDeveloperAutoPatch(data.patch);
+      if (data.file?.path) {
+        setDeveloperPatchPath(data.file.path);
+        setDeveloperSelectedFinding((current) => current ? { ...current, path: data.file.path } : { path: data.file.path });
+      }
       if (data.patch?.changed) {
         setDeveloperPatchContent(data.patch.content || "");
         setDeveloperPatchApproved(false);
