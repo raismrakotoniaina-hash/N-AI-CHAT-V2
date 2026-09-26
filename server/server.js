@@ -351,6 +351,25 @@ app.post("/api/developer/github-analyze", async (req, res) => {
     }
 
     const analysis = await analyzeDeveloperProject(files);
+
+    // Ensure every actionable finding has a real file path for patch preview.
+    if (Array.isArray(analysis?.findings)) {
+      analysis.findings = analysis.findings.map((finding) => {
+        if (finding?.path) return finding;
+        const area = String(finding?.area || "").toLowerCase();
+        const message = String(finding?.message || "").toLowerCase();
+        const match =
+          area === "quality" || message.includes("console.log")
+            ? files.find((file) => /console\.log\s*\(/.test(file.content))
+            : area === "security" || message.includes("secret") || message.includes("token")
+              ? files.find((file) => /(api[_-]?key|secret|password|token)\s*[:=]\s*["'][^"']{8,}["']/i.test(file.content))
+              : area === "code" || message.includes("todo") || message.includes("fixme") || message.includes("xxx")
+                ? files.find((file) => /TODO|FIXME|XXX/i.test(file.content))
+                : null;
+        return match ? { ...finding, path: match.path } : finding;
+      });
+    }
+
     const updatedUser = await spendCredits(user.id, cost, "coding");
     if (!updatedUser) {
       return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
