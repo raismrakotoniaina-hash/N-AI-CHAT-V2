@@ -61,6 +61,7 @@ function App() {
   const [githubProjectLoading, setGithubProjectLoading] = useState(false);
   const [developerAutoPatchLoading, setDeveloperAutoPatchLoading] = useState(false);
   const [developerAutoPatch, setDeveloperAutoPatch] = useState(null);
+  const [developerSelectedFinding, setDeveloperSelectedFinding] = useState(null);
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -395,14 +396,20 @@ function App() {
 
   const handleDeveloperAutoPatch = async () => {
     const repositoryUrl = githubProjectUrl.trim();
-    const path = developerPatchPath.trim();
-    const finding = Array.isArray(developerAnalysis?.findings) ? developerAnalysis.findings[0] : null;
+    const finding =
+      developerSelectedFinding ||
+      (Array.isArray(developerAnalysis?.findings)
+        ? developerAnalysis.findings.find((item) => item?.path) || developerAnalysis.findings[0]
+        : null);
+    const path = developerPatchPath.trim() || finding?.path || "";
 
     if (!repositoryUrl || !path || !developerAnalysis || developerAutoPatchLoading) return;
 
     setDeveloperAutoPatchLoading(true);
     setDeveloperError("");
     setDeveloperAutoPatch(null);
+    setDeveloperPatchPath(path);
+    setDeveloperSelectedFinding(finding);
 
     try {
       const response = await fetch(apiUrl("/api/developer/github-patch-preview"), {
@@ -1064,8 +1071,29 @@ function App() {
             {developerAnalysis && (
               <div style={{ marginTop: 18 }}>
                 <strong>🛠️ Patch / Pull Request</strong>
-                <p style={{ marginTop: 8 }}>Safidio ny fichier, ovay ny code, ary ny N-AI dia hamorona Pull Request ihany rehefa ekenao.</p>
-                <input className="feature-input" placeholder="Path fichier, ohatra: src/App.jsx" value={developerPatchPath} onChange={(e) => setDeveloperPatchPath(e.target.value)} style={{ marginTop: 10 }} />
+                <p style={{ marginTop: 8 }}>N-AI dia misafidy ho azy ny finding misy fichier, mamorona preview, ary Pull Request ihany rehefa ekenao.</p>
+                {Array.isArray(developerAnalysis.findings) && developerAnalysis.findings.some((item) => item?.path) && (
+                  <div style={{ marginTop: 10 }}>
+                    {developerAnalysis.findings.filter((item) => item?.path).map((item, index) => (
+                      <button
+                        key={index}
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => {
+                          setDeveloperSelectedFinding(item);
+                          setDeveloperPatchPath(item.path);
+                          setDeveloperAutoPatch(null);
+                          setDeveloperPatchContent("");
+                          setDeveloperPatchApproved(false);
+                        }}
+                        style={{ display: "block", width: "100%", textAlign: "left", marginTop: 8 }}
+                      >
+                        {developerSelectedFinding?.path === item.path && developerSelectedFinding?.area === item.area ? "✓ " : ""}{item.area} — {item.path}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <input className="feature-input" placeholder="Path fichier" value={developerPatchPath} onChange={(e) => setDeveloperPatchPath(e.target.value)} style={{ marginTop: 10 }} />
                 <button
                   className="feature-button"
                   type="button"
