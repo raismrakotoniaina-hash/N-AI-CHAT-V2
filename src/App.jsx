@@ -1103,11 +1103,26 @@ function App() {
                     ))}
                   </div>
                 )}
-                <input className="feature-input" placeholder="Path fichier" value={developerPatchPath} onChange={(e) => setDeveloperPatchPath(e.target.value)} style={{ marginTop: 10 }} />
+                <div className="feature-card" style={{ marginTop: 10 }}>
+                  <strong>📄 Fichier hojerena</strong>
+                  <p style={{ marginTop: 6 }}>
+                    {developerSelectedFinding?.path || developerPatchPath || "Hofidian'ny N-AI ho azy rehefa manao patch."}
+                  </p>
+                  {developerSelectedFinding?.message && (
+                    <small>{developerSelectedFinding.message}</small>
+                  )}
+                </div>
+                <input
+                  className="feature-input"
+                  placeholder="Path fichier (azo ovaina raha ilaina)"
+                  value={developerPatchPath}
+                  onChange={(e) => setDeveloperPatchPath(e.target.value)}
+                  style={{ marginTop: 10 }}
+                />
                 <button
                   className="feature-button"
                   type="button"
-                  disabled={!githubProjectUrl.trim() || !developerPatchPath.trim() || developerAutoPatchLoading}
+                  disabled={!githubProjectUrl.trim() || !developerAnalysis || developerAutoPatchLoading}
                   onClick={handleDeveloperAutoPatch}
                   style={{ marginTop: 10 }}
                 >
