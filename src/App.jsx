@@ -967,9 +967,52 @@ function App() {
             {developerAnalysis && (
               <div style={{ marginTop: 16 }}>
                 <strong>Résultat de l'analyse</strong>
-                <pre style={{ whiteSpace: "pre-wrap", overflowX: "auto", marginTop: 10 }}>
-                  {JSON.stringify(developerAnalysis, null, 2)}
-                </pre>
+                {developerAnalysis.summary && (
+                  <p style={{ marginTop: 10 }}>{developerAnalysis.summary}</p>
+                )}
+
+                {Array.isArray(developerAnalysis.findings) && developerAnalysis.findings.length > 0 && (
+                  <div style={{ marginTop: 14 }}>
+                    <strong>🔎 Findings</strong>
+                    {developerAnalysis.findings.map((item, index) => (
+                      <div key={index} className="feature-card" style={{ marginTop: 8 }}>
+                        <strong>{item.level === "warning" ? "⚠️" : "ℹ️"} {item.area}</strong>
+                        <p style={{ marginTop: 6 }}>{item.message}</p>
+                        {item.path && <small>Fichier: {item.path}</small>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {Array.isArray(developerAnalysis.fixes) && developerAnalysis.fixes.length > 0 && (
+                  <div style={{ marginTop: 16 }}>
+                    <strong>🛠️ Drafitra fanitsiana</strong>
+                    {developerAnalysis.fixes.map((item, index) => (
+                      <div key={index} className="feature-card" style={{ marginTop: 8 }}>
+                        <strong>{item.area}</strong>
+                        <p style={{ marginTop: 6 }}>{item.action}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {Array.isArray(developerAnalysis.nextSteps) && developerAnalysis.nextSteps.length > 0 && (
+                  <div style={{ marginTop: 16 }}>
+                    <strong>➡️ Dingana manaraka</strong>
+                    <ul>
+                      {developerAnalysis.nextSteps.map((step, index) => (
+                        <li key={index} style={{ marginTop: 6 }}>{step}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <details style={{ marginTop: 16 }}>
+                  <summary>Voir JSON complet</summary>
+                  <pre style={{ whiteSpace: "pre-wrap", overflowX: "auto", marginTop: 10 }}>
+                    {JSON.stringify(developerAnalysis, null, 2)}
+                  </pre>
+                </details>
               </div>
             )}
             </div>
