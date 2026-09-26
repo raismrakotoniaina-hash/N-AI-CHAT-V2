@@ -50,6 +50,11 @@ function App() {
   const [developerError, setDeveloperError] = useState("");
   const [developerLoading, setDeveloperLoading] = useState(false);
   const [developerAnalysis, setDeveloperAnalysis] = useState(null);
+  const [developerPatchPath, setDeveloperPatchPath] = useState("");
+  const [developerPatchContent, setDeveloperPatchContent] = useState("");
+  const [developerPatchApproved, setDeveloperPatchApproved] = useState(false);
+  const [developerPatchLoading, setDeveloperPatchLoading] = useState(false);
+  const [developerPatchResult, setDeveloperPatchResult] = useState(null);
   const [githubProjectUrl, setGithubProjectUrl] = useState("");
   const [githubProjectLoading, setGithubProjectLoading] = useState(false);
 
@@ -381,6 +386,34 @@ function App() {
     } finally {
       setDeveloperLoading(false);
       event.target.value = "";
+    }
+  };
+
+  const handleDeveloperPatch = async () => {
+    if (!githubProjectUrl.trim() || !developerPatchPath.trim() || !developerPatchContent || !developerPatchApproved || developerPatchLoading) return;
+    setDeveloperPatchLoading(true);
+    setDeveloperError("");
+    setDeveloperPatchResult(null);
+    try {
+      const response = await fetch(apiUrl("/api/developer/github-propose"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          repositoryUrl: githubProjectUrl.trim(),
+          path: developerPatchPath.trim(),
+          content: developerPatchContent,
+          approved: true,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) throw new Error(data.error || "Tsy afaka namorona Pull Request.");
+      setDeveloperPatchResult(data);
+      setDeveloperPatchApproved(false);
+    } catch (error) {
+      setDeveloperError(error.message || "GitHub patch error.");
+    } finally {
+      setDeveloperPatchLoading(false);
     }
   };
 
@@ -964,6 +997,28 @@ function App() {
             >
               {developerLoading ? "🧠 Mandinika..." : "🧠 Ampanadihady amin'i N-AI — 8 crédits"}
             </button>
+            {developerAnalysis && (
+              <div style={{ marginTop: 18 }}>
+                <strong>🛠️ Patch / Pull Request</strong>
+                <p style={{ marginTop: 8 }}>Safidio ny fichier, ovay ny code, ary ny N-AI dia hamorona Pull Request ihany rehefa ekenao.</p>
+                <input className="feature-input" placeholder="Path fichier, ohatra: src/App.jsx" value={developerPatchPath} onChange={(e) => setDeveloperPatchPath(e.target.value)} style={{ marginTop: 10 }} />
+                <textarea className="feature-input" placeholder="Apetraka eto ny version corrigée..." value={developerPatchContent} onChange={(e) => setDeveloperPatchContent(e.target.value)} style={{ marginTop: 10, minHeight: 220, fontFamily: "monospace" }} />
+                <label style={{ display: "block", marginTop: 10 }}>
+                  <input type="checkbox" checked={developerPatchApproved} onChange={(e) => setDeveloperPatchApproved(e.target.checked)} />
+                  {" "}Ekeko ny hamoronan'i N-AI Pull Request.
+                </label>
+                <button className="feature-button" type="button" disabled={!developerPatchPath.trim() || !developerPatchContent || !developerPatchApproved || developerPatchLoading} onClick={handleDeveloperPatch} style={{ marginTop: 10 }}>
+                  {developerPatchLoading ? "🔀 Mamorona Pull Request..." : "🔀 Mamorona Patch + Pull Request"}
+                </button>
+                {developerPatchResult && (
+                  <div className="auth-success" style={{ marginTop: 12 }}>
+                    ✅ Pull Request voaforona — #{developerPatchResult.pullRequest?.number}
+                    {developerPatchResult.pullRequest?.url && <div><a href={developerPatchResult.pullRequest.url} target="_blank" rel="noreferrer">Hijery ny Pull Request</a></div>}
+                  </div>
+                )}
+              </div>
+            )}
+
             {developerAnalysis && (
               <div style={{ marginTop: 16 }}>
                 <strong>Résultat de l'analyse</strong>
