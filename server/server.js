@@ -9,7 +9,7 @@ import { initStorage, getCollection, setCollection } from "./storage.js";
 import { listMemories, createMemory, updateMemory, deleteMemory, clearMemories } from "./memoryStore.js";
 import { listRepository, readRepositoryFile, proposeChange, analyzeRepositorySnapshot } from "./githubIntegration.js";
 import { analyzeRepositoryWithAI, ANALYSIS_FILES } from "./repositoryAi.js";
-import { analyzeDeveloperProject } from "./developerAi.js";
+import { analyzeDeveloperProject, generateDeveloperPatch } from "./developerAi.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -345,6 +345,69 @@ app.post("/api/developer/github-analyze", async (req, res) => {
   } catch (error) {
     console.error("GitHub project analysis error:", error);
     res.status(400).json({ success: false, error: error.message || "GitHub project analysis failed." });
+  }
+});
+
+
+app.post("/api/developer/github-patch-preview", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+
+    const repositoryUrl = String(req.body?.repositoryUrl || "").trim();
+    const path = String(req.body?.path || "").trim();
+    const finding = req.body?.finding && typeof req.body.finding === "object" ? req.body.finding : {};
+    let parsed;
+    try { parsed = new URL(repositoryUrl); } catch {
+      return res.status(400).json({ success: false, error: "GitHub URL invalide." });
+    }
+
+    if (parsed.protocol !== "https:" || parsed.hostname.toLowerCase() !== "github.com") {
+      return res.status(400).json({ success: false, error: "Ampiasao URL github.com." });
+    }
+
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    if (parts.length !== 2 || parts.some((part) => !/^[A-Za-z0-9_.-]+$/.test(part))) {
+      return res.status(400).json({ success: false, error: "URL repository GitHub tsy mety." });
+    }
+    if (!path || path.startsWith("/") || path.includes("..") || /(^|\/)(\.env|\.env\.[^/]+|credentials\.json|id_rsa|id_ed25519)$/i.test(path)) {
+      return res.status(400).json({ success: false, error: "Fichier tsy azo ovaina." });
+    }
+
+    const [owner, repo] = parts;
+    const headers = {
+      Accept: "application/vnd.github.raw+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "N-AI-Chat-V2",
+    };
+
+    const repoResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers });
+    if (!repoResponse.ok) return res.status(repoResponse.status === 404 ? 404 : 502).json({ success: false, error: "Repository public tsy hita." });
+    const repoData = await repoResponse.json();
+    if (repoData.private) return res.status(403).json({ success: false, error: "Private repository: mbola mila GitHub App connection." });
+
+    const branch = repoData.default_branch || "main";
+    const fileResponse = await fetch(
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
+      { headers }
+    );
+    if (!fileResponse.ok) return res.status(404).json({ success: false, error: "Fichier tsy hita ao amin'ny repository." });
+
+    const currentContent = await fileResponse.text();
+    const patch = generateDeveloperPatch({ path, content: currentContent, finding });
+
+    res.json({
+      success: true,
+      repository: { owner, repo, branch },
+      file: { path, content: currentContent },
+      patch,
+      message: patch.changed
+        ? "Patch voaomana. Jereo aloha ny code ary manaova approval vao mamorona Pull Request."
+        : patch.reason,
+    });
+  } catch (error) {
+    console.error("Developer patch preview error:", error);
+    res.status(400).json({ success: false, error: error.message || "Developer patch preview failed." });
   }
 });
 
