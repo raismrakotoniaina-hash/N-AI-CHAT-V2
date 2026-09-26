@@ -75,28 +75,35 @@ function heuristic(files) {
     });
   }
 
-  if (/TODO|FIXME|XXX/i.test(allText)) {
+  const todoFile = files.find((file) => /TODO|FIXME|XXX/i.test(file.content));
+  if (todoFile) {
     findings.push({
       level: "info",
       area: "code",
-      message: "Misy TODO/FIXME/XXX ao amin'ny projet ka misy asa mbola voamarika.",
+      path: todoFile.path,
+      message: "Misy TODO/FIXME/XXX ao amin'ny fichier; misy asa mbola voamarika.",
     });
   }
 
-  if (/console\.log\s*\(/.test(allText)) {
+  const consoleFile = files.find((file) => /console\.log\s*\(/.test(file.content));
+  if (consoleFile) {
     findings.push({
       level: "info",
       area: "quality",
-      message: "Misy console.log ao amin'ny code; jereo raha tokony hesorina amin'ny production.",
+      path: consoleFile.path,
+      message: "Misy console.log ao amin'ny fichier; jereo raha tokony hesorina amin'ny production.",
     });
   }
 
-  const secretLike = /(api[_-]?key|secret|password|token)\s*[:=]\s*["'][^"']{8,}["']/i.test(allText);
-  if (secretLike) {
+  const secretFile = files.find((file) =>
+    /(api[_-]?key|secret|password|token)\s*[:=]\s*["'][^"']{8,}["']/i.test(file.content)
+  );
+  if (secretFile) {
     findings.push({
       level: "warning",
       area: "security",
-      message: "Misy sanda mitovitovy amin'ny secret/token ao anaty code; aza commit-na ny secrets.",
+      path: secretFile.path,
+      message: "Misy sanda mitovitovy amin'ny secret/token ao amin'ny fichier; aza commit-na ny secrets.",
     });
   }
 
