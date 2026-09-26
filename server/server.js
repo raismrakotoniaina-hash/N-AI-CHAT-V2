@@ -273,17 +273,38 @@ app.post("/api/developer/github-analyze", async (req, res) => {
       });
     }
 
+    const isOwnRepository =
+      owner.toLowerCase() === "raismrakotoniaina-hash" &&
+      repo.toLowerCase() === "n-ai-chat-v2";
+
     const headers = {
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
       "User-Agent": "N-AI-Chat-V2",
+      ...(isOwnRepository && process.env.NAI_GITHUB_TOKEN
+        ? { Authorization: `Bearer ${process.env.NAI_GITHUB_TOKEN}` }
+        : {}),
     };
 
     const repoResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers });
     if (!repoResponse.ok) {
+      const remaining = repoResponse.headers.get("x-ratelimit-remaining");
+      const reset = repoResponse.headers.get("x-ratelimit-reset");
+      if ((repoResponse.status === 403 || repoResponse.status === 429) && remaining === "0") {
+        const resetAt = reset ? new Date(Number(reset) * 1000).toLocaleTimeString("fr-FR") : "";
+        return res.status(429).json({
+          success: false,
+          error: resetAt
+            ? `GitHub API rate limit lany. Andraso hatramin'ny ${resetAt} dia andramo indray.`
+            : "GitHub API rate limit lany. Andramo indray afaka kelikely.",
+        });
+      }
       return res.status(repoResponse.status === 404 ? 404 : 502).json({
         success: false,
-        error: repoResponse.status === 404 ? "Repository public tsy hita." : "Tsy afaka mifandray amin'ny GitHub.",
+        error:
+          repoResponse.status === 404
+            ? "Repository tsy hita na tsy public."
+            : `GitHub API error (${repoResponse.status}). Andramo indray afaka kelikely.`,
       });
     }
 
