@@ -457,7 +457,19 @@ app.post("/api/developer/github-propose", async (req, res) => {
     const repoData = await repoResponse.json();
     if (repoData.private) return res.status(403).json({ success: false, error: "Private repository mbola mila GitHub App connection." });
 
+    if (!/^[a-f0-9]{40}$/i.test(expectedSha)) return res.status(400).json({ success: false, error: "expectedSha ilaina: avereno alaina aloha ny fichier." });
+    if (!content.trim() || /^(<<<<<<< |=======\\s*$|>>>>>>> )/m.test(content)) return res.status(400).json({ success: false, error: "Patch foana na misy merge conflict." });
+    if (/\\.(pem|key|p12|pfx)$/i.test(path)) return res.status(400).json({ success: false, error: "Fichier misy secrets tsy azo ovaina." });
+    if (path.endsWith(".json")) {
+      try { JSON.parse(content); } catch { return res.status(400).json({ success: false, error: "JSON invalide." }); }
+    }
     const branch = repoData.default_branch || "main";
+    const fileResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`, { headers: apiHeaders });
+    if (!fileResponse.ok) return res.status(404).json({ success: false, error: "Fichier tsy hita ao amin'ny branch fototra." });
+    const fileData = await fileResponse.json();
+    if (fileData.sha !== expectedSha) return res.status(409).json({ success: false, error: "Niova ilay fichier. Avereno alaina aloha ny version vaovao." });
+
+    if (Buffer.from(fileData.content || "", "base64").toString("utf8") === content) return res.status(400).json({ success: false, error: "Tsy misy fanovana ao amin\'ny patch." });
     const safeName = path.split("/").filter(Boolean).at(-1).replace(/[^A-Za-z0-9_.-]/g, "-");
     const proposalBranch = `nai/patch-${Date.now()}-${safeName}`;
 
@@ -473,11 +485,6 @@ app.post("/api/developer/github-propose", async (req, res) => {
       const errorData = await createBranch.json().catch(() => ({}));
       return res.status(502).json({ success: false, error: errorData.message || "Tsy afaka namorona patch branch." });
     }
-
-    const fileResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`, { headers: apiHeaders });
-    if (!fileResponse.ok) return res.status(404).json({ success: false, error: "Fichier tsy hita ao amin'ny branch fototra." });
-    const fileData = await fileResponse.json();
-    if (expectedSha && fileData.sha !== expectedSha) return res.status(409).json({ success: false, error: "Niova ilay fichier. Avereno alaina aloha ny version vaovao." });
 
     const updateResponse = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${path.split("/").map(encodeURIComponent).join("/")}`, {
       method: "PUT", headers: { ...apiHeaders, "Content-Type": "application/json" },
