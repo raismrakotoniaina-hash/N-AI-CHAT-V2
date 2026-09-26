@@ -65,6 +65,9 @@ function App() {
   const [imageStudioMode, setImageStudioMode] = useState("image");
   const [mannequinFile, setMannequinFile] = useState(null);
   const [mannequinPreview, setMannequinPreview] = useState("");
+  const [avatarGender, setAvatarGender] = useState("femme");
+  const [avatarStyle, setAvatarStyle] = useState("professionnel");
+  const [avatarName, setAvatarName] = useState("Avatar Malagasy");
 
   useEffect(() => {
     setHistoryLoaded(false);
