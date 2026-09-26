@@ -173,6 +173,49 @@ export async function analyzeDeveloperProject(input) {
   return analyzeWithOpenAI(files);
 }
 
+
+export function generateDeveloperPatch({ path, content, finding = {} }) {
+  const target = String(path || "").trim();
+  const source = String(content ?? "");
+  const area = String(finding.area || "").toLowerCase();
+  const message = String(finding.message || "").toLowerCase();
+
+  if (!target || !source) throw new Error("Fichier patch tsy mety.");
+
+  if (area === "quality" || message.includes("console.log")) {
+    const lines = source.split("\n");
+    const filtered = lines.filter((line) => !/^\s*console\.log\s*\(/.test(line));
+    if (filtered.length === lines.length) {
+      return {
+        mode: "local",
+        changed: false,
+        reason: "Tsy nahita console.log tsotra azo esorina.",
+        content: source,
+        diff: "",
+      };
+    }
+
+    const next = filtered.join("\n");
+    const removed = lines.length - filtered.length;
+    return {
+      mode: "local",
+      changed: true,
+      reason: `Nesorina ${removed} console.log tsotra ho fanadiovana production.`,
+      content: next,
+      diff: `- Nesorina ${removed} ligne console.log\\n+ Ny ambiny amin'ny fichier dia tsy novaina.`,
+    };
+  }
+
+  return {
+    mode: "local",
+    changed: false,
+    reason: "Mbola tsy misy patch automatique local azo antoka ho an'ity finding ity. Mila semantic AI rehefa misy OPENAI_API_KEY.",
+    content: source,
+    diff: "",
+  };
+}
+
+
 export const DEVELOPER_LIMITS = {
   maxFiles: MAX_FILES,
   maxFileBytes: MAX_FILE_BYTES,
