@@ -247,6 +247,25 @@ ${source}`;
       model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
       input: [{ role: "user", content: prompt }],
       max_output_tokens: 30000,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "developer_patch",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              changed: { type: "boolean" },
+              reason: { type: "string" },
+              content: { type: "string" },
+              diff: { type: "string" },
+              confidence: { type: "number" },
+            },
+            required: ["changed", "reason", "content", "diff", "confidence"],
+            additionalProperties: false,
+          },
+        },
+      },
     }),
   });
 
