@@ -514,6 +514,52 @@ app.post("/api/developer/github-propose", async (req, res) => {
   }
 });
 
+// Read-only PR checks: no GitHub token or repository write access needed for public repos.
+app.post("/api/developer/github-checks", async (req, res) => {
+  try {
+    if (!await requireUser(req, res)) return;
+    const url = new URL(String(req.body?.repositoryUrl || ""));
+    const parts = url.pathname.split("/").filter(Boolean);
+    const number = Number(req.body?.pullRequestNumber);
+    if (url.protocol !== "https:" || url.hostname !== "github.com" ||
+        parts.length !== 2 || parts.some((part) => !/^[A-Za-z0-9_.-]+$/.test(part)) ||
+        !Number.isSafeInteger(number) || number < 1) {
+      return res.status(400).json({ success: false, error: "Repository URL na PR number tsy mety." });
+    }
+    const [owner, repo] = parts;
+    const base = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+    const headers = { Accept: "application/vnd.github+json", "User-Agent": "N-AI-Chat-V2" };
+    const prResponse = await fetch(`${base}/pulls/${number}`, { headers });
+    if (!prResponse.ok) return res.status(502).json({ success: false, error: "Tsy afaka mamaky ny Pull Request public." });
+    const pr = await prResponse.json();
+    const sha = pr.head?.sha;
+    if (!/^[a-f0-9]{40}$/i.test(sha || "")) throw new Error("PR head SHA tsy hita.");
+    const [checksResponse, statusesResponse] = await Promise.all([
+      fetch(`${base}/commits/${sha}/check-runs?per_page=100`, { headers }),
+      fetch(`${base}/commits/${sha}/status`, { headers }),
+    ]);
+    if (!checksResponse.ok || !statusesResponse.ok) throw new Error("GitHub Checks tsy azo vakiana.");
+    const checks = await checksResponse.json();
+    const statuses = await statusesResponse.json();
+    const runs = (checks.check_runs || []).map((item) => ({
+      name: item.name, status: item.status, conclusion: item.conclusion, url: item.html_url,
+    }));
+    const contexts = (statuses.statuses || []).map((item) => ({
+      name: item.context, status: item.state === "pending" ? "in_progress" : "completed",
+      conclusion: item.state === "success" ? "success" : item.state === "pending" ? null : "failure",
+      url: item.target_url,
+    }));
+    const items = [...runs, ...contexts];
+    const state = !items.length ? "not_configured"
+      : items.some((item) => ["failure", "cancelled", "timed_out", "action_required"].includes(item.conclusion)) ? "failure"
+      : items.some((item) => item.status !== "completed" || item.conclusion === null) ? "pending"
+      : items.every((item) => ["success", "skipped", "neutral"].includes(item.conclusion)) ? "success" : "pending";
+    res.json({ success: true, state, checks: items, pullRequest: { number, url: pr.html_url, merged: Boolean(pr.merged) } });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message || "GitHub Checks error." });
+  }
+});
+
 app.post("/api/developer/analyze", async (req, res) => {
   try {
     const user = await requireUser(req, res);
