@@ -1341,7 +1341,7 @@ function App() {
                 <h2>👤 Avatar Studio</h2>
                 <p>Mamorona avatar foronina azo ampiasaina imbetsaka amin'ny publicité, profil professionnel na présentation.</p>
                 <div className="feature-card" style={{ marginTop: 12 }}>
-                  <strong>Avatar Malagasy</strong>
+                  <strong>Profil Avatar</strong><input className="feature-input" value={avatarName} onChange={(e) => setAvatarName(e.target.value)} placeholder="Anaran avatar" style={{ marginTop: 10 }} /><select className="setting-select" value={avatarGender} onChange={(e) => setAvatarGender(e.target.value)} style={{ marginTop: 10, width: "100%" }}><option value="femme">Vehivavy</option><option value="homme">Lehilahy</option></select><select className="setting-select" value={avatarStyle} onChange={(e) => setAvatarStyle(e.target.value)} style={{ marginTop: 10, width: "100%" }}><option value="professionnel">Professionnel</option><option value="mode">Mode / Mannequin</option><option value="publicite">Publicité produit</option><option value="news">Mpanolotra vaovao</option></select>
                   <p style={{ marginTop: 6 }}>Ny tanjona dia ny hitazonana ny endrika sy ny bikan'ilay avatar rehefa miova akanjo, pose na décor.</p>
                   <button
                     className="feature-button"
