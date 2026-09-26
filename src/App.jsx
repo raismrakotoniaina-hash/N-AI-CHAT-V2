@@ -62,6 +62,9 @@ function App() {
   const [developerAutoPatchLoading, setDeveloperAutoPatchLoading] = useState(false);
   const [developerAutoPatch, setDeveloperAutoPatch] = useState(null);
   const [developerSelectedFinding, setDeveloperSelectedFinding] = useState(null);
+  const [imageStudioMode, setImageStudioMode] = useState("image");
+  const [mannequinFile, setMannequinFile] = useState(null);
+  const [mannequinPreview, setMannequinPreview] = useState("");
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -1277,34 +1280,111 @@ function App() {
         <main className="feature-page">
           <div className="feature-header">
             <div className="feature-icon">🖼️</div>
-
             <div>
               <h1>{t("imageStudio")}</h1>
-              <p>{t("imageDesc")}</p>
+              <p>Image Studio — création, Avatar et Virtual Mannequin.</p>
             </div>
           </div>
 
           <div className="feature-card">
-            <h2>{t("imageTitle")}</h2>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                className={imageStudioMode === "image" ? "feature-button" : "secondary-button"}
+                type="button"
+                onClick={() => setImageStudioMode("image")}
+              >
+                🎨 Image Studio
+              </button>
+              <button
+                className={imageStudioMode === "avatar" ? "feature-button" : "secondary-button"}
+                type="button"
+                onClick={() => setImageStudioMode("avatar")}
+              >
+                👤 Avatar Studio
+              </button>
+              <button
+                className={imageStudioMode === "mannequin" ? "feature-button" : "secondary-button"}
+                type="button"
+                onClick={() => setImageStudioMode("mannequin")}
+              >
+                👗 Virtual Mannequin
+              </button>
+            </div>
 
-            <p>{t("imageDesc")}</p>
+            {imageStudioMode === "image" && (
+              <div style={{ marginTop: 18 }}>
+                <h2>{t("imageTitle")}</h2>
+                <p>{t("imageDesc")}</p>
+                <textarea
+                  className="feature-input"
+                  placeholder={t("imagePlaceholder")}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  style={{ marginTop: 10 }}
+                />
+                <button
+                  className="feature-button"
+                  type="button"
+                  onClick={() => setMessage("Créer une image : ")}
+                  style={{ marginTop: 10 }}
+                >
+                  {t("prepareImage")}
+                </button>
+              </div>
+            )}
 
-            <textarea
-              className="feature-input"
-              placeholder={t("imagePlaceholder")}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
+            {imageStudioMode === "avatar" && (
+              <div style={{ marginTop: 18 }}>
+                <h2>👤 Avatar Studio</h2>
+                <p>Mamorona avatar foronina azo ampiasaina imbetsaka amin'ny publicité, profil professionnel na présentation.</p>
+                <div className="feature-card" style={{ marginTop: 12 }}>
+                  <strong>Avatar Malagasy</strong>
+                  <p style={{ marginTop: 6 }}>Ny tanjona dia ny hitazonana ny endrika sy ny bikan'ilay avatar rehefa miova akanjo, pose na décor.</p>
+                  <button
+                    className="feature-button"
+                    type="button"
+                    onClick={() => setMessage("Créer un avatar Malagasy cohérent pour des publicités et présentations professionnelles.")}
+                    style={{ marginTop: 10 }}
+                  >
+                    ✨ Préparer un Avatar
+                  </button>
+                </div>
+              </div>
+            )}
 
-            <button
-              className="feature-button"
-              type="button"
-              onClick={() =>
-                setMessage("Créer une image : ")
-              }
-            >
-              {t("prepareImage")}
-            </button>
+            {imageStudioMode === "mannequin" && (
+              <div style={{ marginTop: 18 }}>
+                <h2>👗 Virtual Mannequin</h2>
+                <p>Ampidiro ny sary tena izy an'ilay akanjo, dia ho vonona amin'ny dingana manaraka ny fametrahana azy amin'ny avatar.</p>
+                <input
+                  className="feature-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setMannequinFile(file);
+                    if (file) setMannequinPreview(URL.createObjectURL(file));
+                    else setMannequinPreview("");
+                  }}
+                  style={{ marginTop: 10 }}
+                />
+                {mannequinPreview && (
+                  <div className="feature-card" style={{ marginTop: 12 }}>
+                    <strong>📸 Sary nampidirina</strong>
+                    <img
+                      src={mannequinPreview}
+                      alt="Akanjo nampidirina"
+                      style={{ display: "block", width: "100%", maxHeight: 360, objectFit: "contain", borderRadius: 14, marginTop: 10 }}
+                    />
+                    <p style={{ marginTop: 10 }}>{mannequinFile?.name}</p>
+                  </div>
+                )}
+                <div className="feature-card" style={{ marginTop: 12 }}>
+                  <strong>🎯 Dingana manaraka</strong>
+                  <p style={{ marginTop: 6 }}>Rehefa ampidirina ny sary dia afaka misafidy avatar, tarehy, pose ary décor; ilay akanjo kosa no tazonina ho produit amidy.</p>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       );
