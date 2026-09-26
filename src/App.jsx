@@ -552,6 +552,16 @@ function App() {
       }
 
       setDeveloperAnalysis(data.analysis);
+      const findings = Array.isArray(data.analysis?.findings) ? data.analysis.findings : [];
+      const patchFinding =
+        findings.find((item) => item?.area === "quality" && item?.path) ||
+        findings.find((item) => item?.path) ||
+        null;
+      setDeveloperSelectedFinding(patchFinding);
+      setDeveloperPatchPath(patchFinding?.path || "");
+      setDeveloperPatchContent("");
+      setDeveloperAutoPatch(null);
+      setDeveloperPatchApproved(false);
       setCredits(data.credits ?? credits);
     } catch (error) {
       console.error("GitHub project analysis error:", error);
