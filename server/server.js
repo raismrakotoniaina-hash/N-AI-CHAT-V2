@@ -394,7 +394,7 @@ app.post("/api/developer/github-patch-preview", async (req, res) => {
     if (!fileResponse.ok) return res.status(404).json({ success: false, error: "Fichier tsy hita ao amin'ny repository." });
 
     const currentContent = await fileResponse.text();
-    const patch = generateDeveloperPatch({ path, content: currentContent, finding });
+    const patch = await generateDeveloperPatch({ path, content: currentContent, finding });
 
     res.json({
       success: true,
