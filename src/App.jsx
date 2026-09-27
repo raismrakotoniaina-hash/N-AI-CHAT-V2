@@ -9,6 +9,7 @@ import AuthPage from "./components/auth/AuthPage";
 import { LANGUAGES, useTranslation } from "./services/i18n";
 import { PLANS, formatMGA } from "./config/plans";
 import { MANNEQUIN_POSES, MANNEQUIN_BACKGROUNDS, prepareMannequinPrompt } from "./config/mannequin";
+import { saveAvatarReference, getAvatarReference } from "./services/avatarReferenceStore";
 
 const STORAGE_KEY = "n-ai-chat-v2-messages";
 const CONVERSATIONS_KEY = "n-ai-chat-v2-conversations";
@@ -78,6 +79,7 @@ function App() {
   const [avatarReferenceFile, setAvatarReferenceFile] = useState(null);
   const [avatarReferencePreview, setAvatarReferencePreview] = useState("");
   const [avatarReferenceError, setAvatarReferenceError] = useState("");
+  const [savedReferencePreview, setSavedReferencePreview] = useState("");
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -226,7 +228,26 @@ function App() {
     setAvatarReferenceFile(file);
   };
 
-  const handleSaveAvatarProfile = () => {
+  useEffect(() => {
+    if (!user?.id || !selectedAvatarId) {
+      setSavedReferencePreview("");
+      return;
+    }
+    let active = true;
+    let objectUrl = "";
+    getAvatarReference(user.id, selectedAvatarId).then((file) => {
+      if (!active || !file) return;
+      objectUrl = URL.createObjectURL(file);
+      setSavedReferencePreview(objectUrl);
+    }).catch(() => { if (active) setSavedReferencePreview(""); });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      setSavedReferencePreview("");
+    };
+  }, [user?.id, selectedAvatarId, savedAvatars]);
+
+  const handleSaveAvatarProfile = async () => {
     if (!user?.id || !avatarName.trim()) return;
     const profile = {
       id: String(Date.now()),
@@ -236,10 +257,15 @@ function App() {
     };
     const next = [...savedAvatars, profile].slice(-20);
     try {
+      if (avatarReferenceFile) {
+        await saveAvatarReference(user.id, profile.id, avatarReferenceFile);
+      }
       localStorage.setItem("nai-avatar-profiles-" + user.id, JSON.stringify(next));
       setSavedAvatars(next);
       setSelectedAvatarId(profile.id);
-      setAvatarSavedNotice("Profil avatar voatahiry amin'ity navigateur ity.");
+      setAvatarSavedNotice(avatarReferenceFile
+        ? "Profil sy sary référence voatahiry amin'ity navigateur ity."
+        : "Profil avatar voatahiry amin'ity navigateur ity.");
     } catch {
       setAvatarSavedNotice("Tsy voatahiry: jereo ny toerana malalaka amin'ny navigateur.");
     }
@@ -1470,6 +1496,12 @@ function App() {
                     <option value="">Profil Avatar ankehitriny</option>
                     {savedAvatars.map((profile) => <option key={profile.id} value={profile.id}>{profile.name} — {profile.style}</option>)}
                   </select>
+                  {savedReferencePreview && (
+                    <div style={{ marginTop: 10 }}>
+                      <img src={savedReferencePreview} alt="Sary référence an'ilay avatar voafidy" style={{ display: "block", width: "100%", maxHeight: 240, objectFit: "contain", borderRadius: 12 }} />
+                      <small>Sary référence voatahiry eto amin'ity navigateur ity; mbola tsy alefa amin'ny IA.</small>
+                    </div>
+                  )}
                   <label style={{ display: "block", marginTop: 10 }}>Pose</label>
                   <select className="setting-select" value={mannequinPose} onChange={(e) => setMannequinPose(e.target.value)} style={{ width: "100%" }}>
                     {MANNEQUIN_POSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
