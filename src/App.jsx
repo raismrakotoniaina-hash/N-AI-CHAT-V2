@@ -80,6 +80,9 @@ function App() {
   const [avatarReferencePreview, setAvatarReferencePreview] = useState("");
   const [avatarReferenceError, setAvatarReferenceError] = useState("");
   const [savedReferencePreview, setSavedReferencePreview] = useState("");
+  const [imageGenerationLoading, setImageGenerationLoading] = useState(false);
+  const [generatedImage, setGeneratedImage] = useState("");
+  const [imageGenerationError, setImageGenerationError] = useState("");
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -776,6 +779,60 @@ function App() {
       );
     } finally {
       setPaymentLoading("");
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    if (!mannequinFile || imageGenerationLoading) return;
+    setImageGenerationLoading(true);
+    setImageGenerationError("");
+    setGeneratedImage("");
+    try {
+      const referenceFile = selectedAvatarId && user?.id
+        ? await getAvatarReference(user.id, selectedAvatarId)
+        : null;
+      const fileToUse = referenceFile || avatarReferenceFile;
+      let referenceImageDataUrl = null;
+      if (fileToUse) {
+        referenceImageDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error("Tsy afaka namaky ny sary référence."));
+          reader.readAsDataURL(fileToUse);
+        });
+      }
+      const profile = savedAvatars.find((item) => item.id === selectedAvatarId);
+      const prompt = prepareMannequinPrompt({
+        avatarName: profile?.name || avatarName,
+        avatarGender: profile?.gender || avatarGender,
+        avatarStyle: profile?.style || avatarStyle,
+        pose: mannequinPose,
+        background: mannequinBackground,
+        details: mannequinDetails,
+      });
+      const response = await fetch(apiUrl("/api/image/generate"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ prompt, referenceImageDataUrl }),
+      });
+      const data = await response.json();
+      if (response.status === 401) {
+        setUser(null);
+        throw new Error("Session expirée. Veuillez vous reconnecter.");
+      }
+      if (!response.ok || !data.success) throw new Error(data.error || "Image generation error.");
+      setCredits(data.credits ?? credits);
+      if (data.generated && data.imageDataUrl) {
+        setGeneratedImage(data.imageDataUrl);
+      } else {
+        setImageGenerationError(data.message || "Demo Mode: génération IA mbola tsy mandeha.");
+      }
+    } catch (error) {
+      console.error("Image generation error:", error);
+      setImageGenerationError(error.message || "Tsy afaka namorona sary.");
+    } finally {
+      setImageGenerationLoading(false);
     }
   };
 
@@ -1514,6 +1571,16 @@ function App() {
                   <button className="feature-button" type="button" disabled={!mannequinFile} onClick={() => setMessage(prepareMannequinPrompt({ avatarName: savedAvatars.find((profile) => profile.id === selectedAvatarId)?.name || avatarName, avatarGender: savedAvatars.find((profile) => profile.id === selectedAvatarId)?.gender || avatarGender, avatarStyle: savedAvatars.find((profile) => profile.id === selectedAvatarId)?.style || avatarStyle, pose: mannequinPose, background: mannequinBackground, details: mannequinDetails }))} style={{ marginTop: 10 }}>
                     ✨ Préparer la génération
                   </button>
+                  <button className="feature-button" type="button" disabled={!mannequinFile || imageGenerationLoading} onClick={handleGenerateImage} style={{ marginTop: 10 }}>
+                    {imageGenerationLoading ? "⏳ Génération..." : "🖼️ Générer l'image"}
+                  </button>
+                  {imageGenerationError && <p role="status" style={{ marginTop: 8 }}>{imageGenerationError}</p>}
+                  {generatedImage && (
+                    <div className="feature-card" style={{ marginTop: 12 }}>
+                      <strong>🖼️ Résultat</strong>
+                      <img src={generatedImage} alt="Image générée" style={{ display: "block", width: "100%", maxHeight: 520, objectFit: "contain", borderRadius: 14, marginTop: 10 }} />
+                    </div>
+                  )}
                   <p style={{ marginTop: 8 }}>Préparation ihany izao: tsy mbola mandefa sary amin'ny moteur IA.</p>
                 </div>
               </div>
