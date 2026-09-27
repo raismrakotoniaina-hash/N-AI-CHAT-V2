@@ -10,6 +10,7 @@ import { listMemories, createMemory, updateMemory, deleteMemory, clearMemories }
 import { listRepository, readRepositoryFile, proposeChange, analyzeRepositorySnapshot } from "./githubIntegration.js";
 import { analyzeRepositoryWithAI, ANALYSIS_FILES } from "./repositoryAi.js";
 import { analyzeDeveloperProject, generateDeveloperPatch } from "./developerAi.js";
+import { generateImage } from "./imageGeneration.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -708,6 +709,53 @@ app.post("/api/developer/analyze", async (req, res) => {
   } catch (error) {
     console.error("Developer analysis error:", error);
     res.status(400).json({ success: false, error: error.message || "Developer analysis failed." });
+  }
+});
+
+app.post("/api/image/generate", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+
+    const prompt = String(req.body?.prompt || "").trim();
+    const referenceImageDataUrl = req.body?.referenceImageDataUrl
+      ? String(req.body.referenceImageDataUrl)
+      : null;
+    if (!prompt) return res.status(400).json({ success: false, error: "Prompt image ilaina." });
+    if (prompt.length > 6000) return res.status(400).json({ success: false, error: "Prompt image lava loatra." });
+
+    const cost = CREDIT_COSTS.image;
+    if (user.credits < cost) {
+      return res.status(402).json({ success: false, error: "Tsy ampy ny crédit hanaovana image.", credits: user.credits, required: cost });
+    }
+
+    if (DEMO_MODE) {
+      return res.json({
+        success: true,
+        mode: "demo",
+        generated: false,
+        message: "Demo Mode: voaomana ny image request, fa mbola tsy mandeha ny génération IA.",
+        credits: user.credits,
+        creditsUsed: 0,
+      });
+    }
+
+    const result = await generateImage({ prompt, referenceImageDataUrl });
+    const updatedUser = await spendCredits(user.id, cost, "image");
+    if (!updatedUser) return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
+
+    res.json({
+      success: true,
+      mode: "live",
+      generated: true,
+      imageDataUrl: result.imageDataUrl,
+      responseId: result.responseId,
+      credits: updatedUser.credits,
+      creditsUsed: cost,
+    });
+  } catch (error) {
+    console.error("Image generation error:", error);
+    res.status(502).json({ success: false, error: error.message || "Image generation failed." });
   }
 });
 
