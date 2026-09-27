@@ -75,6 +75,9 @@ function App() {
   const [savedAvatars, setSavedAvatars] = useState([]);
   const [selectedAvatarId, setSelectedAvatarId] = useState("");
   const [avatarSavedNotice, setAvatarSavedNotice] = useState("");
+  const [avatarReferenceFile, setAvatarReferenceFile] = useState(null);
+  const [avatarReferencePreview, setAvatarReferencePreview] = useState("");
+  const [avatarReferenceError, setAvatarReferenceError] = useState("");
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -201,6 +204,27 @@ function App() {
       setSelectedAvatarId("");
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!avatarReferenceFile) {
+      setAvatarReferencePreview("");
+      return;
+    }
+    const previewUrl = URL.createObjectURL(avatarReferenceFile);
+    setAvatarReferencePreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [avatarReferenceFile]);
+
+  const handleAvatarReferenceUpload = (event) => {
+    const file = event.target.files?.[0] || null;
+    setAvatarReferenceError("");
+    if (file && (!file.type.startsWith("image/") || file.size > 8 * 1024 * 1024)) {
+      setAvatarReferenceError("Sary JPG/PNG/WebP latsaky ny 8 MB ihany.");
+      event.target.value = "";
+      return;
+    }
+    setAvatarReferenceFile(file);
+  };
 
   const handleSaveAvatarProfile = () => {
     if (!user?.id || !avatarName.trim()) return;
@@ -1393,6 +1417,16 @@ function App() {
                   >
                     ✨ Préparer un Avatar
                   </button>
+                  <label style={{ display: "block", marginTop: 12 }}>📷 Sary référence an'ilay avatar (tsy voatery)</label>
+                  <input className="feature-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatarReferenceUpload} style={{ marginTop: 8 }} />
+                  {avatarReferenceError && <p role="alert">{avatarReferenceError}</p>}
+                  {avatarReferencePreview && (
+                    <div style={{ marginTop: 10 }}>
+                      <img src={avatarReferencePreview} alt="Avatar référence" style={{ display: "block", width: "100%", maxHeight: 320, objectFit: "contain", borderRadius: 12 }} />
+                      <small>{avatarReferenceFile?.name} — aperçu local, tsy alefa amin'ny serveur.</small>
+                      <button className="secondary-button" type="button" onClick={() => setAvatarReferenceFile(null)} style={{ display: "block", marginTop: 8 }}>Esory ny référence</button>
+                    </div>
+                  )}
                   <button className="secondary-button" type="button" disabled={!avatarName.trim()} onClick={handleSaveAvatarProfile} style={{ marginTop: 10 }}>
                     💾 Tehirizo ny profil Avatar
                   </button>
