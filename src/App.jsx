@@ -836,6 +836,48 @@ function App() {
     }
   };
 
+  const handleGenerateStudioImage = async () => {
+    const prompt = message.trim();
+    if (!prompt || imageGenerationLoading) return;
+
+    setImageGenerationLoading(true);
+    setImageGenerationError("");
+    setGeneratedImage("");
+
+    try {
+      const response = await fetch(apiUrl("/api/image/generate"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ prompt }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 401) {
+        setUser(null);
+        throw new Error("Session expirée. Veuillez vous reconnecter.");
+      }
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Image generation error.");
+      }
+
+      setCredits(data.credits ?? credits);
+
+      if (data.generated && data.imageDataUrl) {
+        setGeneratedImage(data.imageDataUrl);
+      } else {
+        setImageGenerationError(data.message || "Demo Mode: génération IA mbola tsy mandeha.");
+      }
+    } catch (error) {
+      console.error("Studio image generation error:", error);
+      setImageGenerationError(error.message || "Tsy afaka namorona sary.");
+    } finally {
+      setImageGenerationLoading(false);
+    }
+  };
+
   const handleSend = async (operation = "chat") => {
     const text = message.trim();
 
@@ -1471,17 +1513,37 @@ function App() {
                   className="feature-input"
                   placeholder={t("imagePlaceholder")}
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  style={{ marginTop: 10 }}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    setImageGenerationError("");
+                  }}
+                  style={{ marginTop: 10, minHeight: 140 }}
                 />
                 <button
                   className="feature-button"
                   type="button"
-                  onClick={() => setMessage("Créer une image : ")}
+                  disabled={!message.trim() || imageGenerationLoading}
+                  onClick={handleGenerateStudioImage}
                   style={{ marginTop: 10 }}
                 >
-                  {t("prepareImage")}
+                  {imageGenerationLoading ? "⏳ Génération..." : "🖼️ Générer l'image"}
                 </button>
+                {imageGenerationError && (
+                  <p role="status" style={{ marginTop: 10 }}>{imageGenerationError}</p>
+                )}
+                {generatedImage && (
+                  <div className="feature-card" style={{ marginTop: 14 }}>
+                    <strong>🖼️ Résultat</strong>
+                    <img
+                      src={generatedImage}
+                      alt="Image générée par N-AI"
+                      style={{ display: "block", width: "100%", maxHeight: 560, objectFit: "contain", borderRadius: 14, marginTop: 10 }}
+                    />
+                  </div>
+                )}
+                <small style={{ display: "block", marginTop: 10 }}>
+                  Coût: {50} crédits en mode live. En DEMO_MODE dia tsy mandany crédit.
+                </small>
               </div>
             )}
 
@@ -1581,7 +1643,6 @@ function App() {
                       <img src={generatedImage} alt="Image générée" style={{ display: "block", width: "100%", maxHeight: 520, objectFit: "contain", borderRadius: 14, marginTop: 10 }} />
                     </div>
                   )}
-                  <p style={{ marginTop: 8 }}>Préparation ihany izao: tsy mbola mandefa sary amin'ny moteur IA.</p>
                 </div>
               </div>
             )}
