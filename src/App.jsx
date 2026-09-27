@@ -72,6 +72,9 @@ function App() {
   const [mannequinPose, setMannequinPose] = useState("debout");
   const [mannequinBackground, setMannequinBackground] = useState("studio");
   const [mannequinDetails, setMannequinDetails] = useState("");
+  const [savedAvatars, setSavedAvatars] = useState([]);
+  const [selectedAvatarId, setSelectedAvatarId] = useState("");
+  const [avatarSavedNotice, setAvatarSavedNotice] = useState("");
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -182,6 +185,41 @@ function App() {
 
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setSavedAvatars([]);
+      setSelectedAvatarId("");
+      return;
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem("nai-avatar-profiles-" + user.id) || "[]");
+      setSavedAvatars(Array.isArray(saved) ? saved : []);
+      setSelectedAvatarId("");
+    } catch {
+      setSavedAvatars([]);
+      setSelectedAvatarId("");
+    }
+  }, [user?.id]);
+
+  const handleSaveAvatarProfile = () => {
+    if (!user?.id || !avatarName.trim()) return;
+    const profile = {
+      id: String(Date.now()),
+      name: avatarName.trim().slice(0, 60),
+      gender: avatarGender,
+      style: avatarStyle,
+    };
+    const next = [...savedAvatars, profile].slice(-20);
+    try {
+      localStorage.setItem("nai-avatar-profiles-" + user.id, JSON.stringify(next));
+      setSavedAvatars(next);
+      setSelectedAvatarId(profile.id);
+      setAvatarSavedNotice("Profil avatar voatahiry amin'ity navigateur ity.");
+    } catch {
+      setAvatarSavedNotice("Tsy voatahiry: jereo ny toerana malalaka amin'ny navigateur.");
+    }
+  };
 
   const loadRepository = async (path = "") => {
     setRepositoryLoading(true);
@@ -1355,6 +1393,11 @@ function App() {
                   >
                     ✨ Préparer un Avatar
                   </button>
+                  <button className="secondary-button" type="button" disabled={!avatarName.trim()} onClick={handleSaveAvatarProfile} style={{ marginTop: 10 }}>
+                    💾 Tehirizo ny profil Avatar
+                  </button>
+                  {avatarSavedNotice && <p role="status" style={{ marginTop: 8 }}>{avatarSavedNotice}</p>}
+                  {savedAvatars.length > 0 && <p style={{ marginTop: 8 }}>{savedAvatars.length} profil avatar voatahiry amin'ity fitaovana ity.</p>}
                 </div>
               </div>
             )}
@@ -1388,6 +1431,11 @@ function App() {
                 )}
                 <div className="feature-card" style={{ marginTop: 12 }}>
                   <strong>🎯 Configuration du mannequin</strong>
+                  <label style={{ display: "block", marginTop: 10 }}>Avatar</label>
+                  <select className="setting-select" value={selectedAvatarId} onChange={(e) => setSelectedAvatarId(e.target.value)} style={{ width: "100%" }}>
+                    <option value="">Profil Avatar ankehitriny</option>
+                    {savedAvatars.map((profile) => <option key={profile.id} value={profile.id}>{profile.name} — {profile.style}</option>)}
+                  </select>
                   <label style={{ display: "block", marginTop: 10 }}>Pose</label>
                   <select className="setting-select" value={mannequinPose} onChange={(e) => setMannequinPose(e.target.value)} style={{ width: "100%" }}>
                     {MANNEQUIN_POSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
@@ -1397,7 +1445,7 @@ function App() {
                     {MANNEQUIN_BACKGROUNDS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                   </select>
                   <textarea className="feature-input" placeholder="Lumière, cadrage, ambiance..." value={mannequinDetails} onChange={(e) => setMannequinDetails(e.target.value)} style={{ marginTop: 10 }} />
-                  <button className="feature-button" type="button" disabled={!mannequinFile} onClick={() => setMessage(prepareMannequinPrompt({ avatarName, avatarGender, avatarStyle, pose: mannequinPose, background: mannequinBackground, details: mannequinDetails }))} style={{ marginTop: 10 }}>
+                  <button className="feature-button" type="button" disabled={!mannequinFile} onClick={() => setMessage(prepareMannequinPrompt({ avatarName: savedAvatars.find((profile) => profile.id === selectedAvatarId)?.name || avatarName, avatarGender: savedAvatars.find((profile) => profile.id === selectedAvatarId)?.gender || avatarGender, avatarStyle: savedAvatars.find((profile) => profile.id === selectedAvatarId)?.style || avatarStyle, pose: mannequinPose, background: mannequinBackground, details: mannequinDetails }))} style={{ marginTop: 10 }}>
                     ✨ Préparer la génération
                   </button>
                   <p style={{ marginTop: 8 }}>Préparation ihany izao: tsy mbola mandefa sary amin'ny moteur IA.</p>
