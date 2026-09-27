@@ -8,6 +8,7 @@ import MessageBubble from "./components/chat/MessageBubble";
 import AuthPage from "./components/auth/AuthPage";
 import { LANGUAGES, useTranslation } from "./services/i18n";
 import { PLANS, formatMGA } from "./config/plans";
+import { MANNEQUIN_POSES, MANNEQUIN_BACKGROUNDS, prepareMannequinPrompt } from "./config/mannequin";
 
 const STORAGE_KEY = "n-ai-chat-v2-messages";
 const CONVERSATIONS_KEY = "n-ai-chat-v2-conversations";
@@ -1386,8 +1387,20 @@ function App() {
                   </div>
                 )}
                 <div className="feature-card" style={{ marginTop: 12 }}>
-                  <strong>🎯 Dingana manaraka</strong>
-                  <p style={{ marginTop: 6 }}>Rehefa ampidirina ny sary dia afaka misafidy avatar, tarehy, pose ary décor; ilay akanjo kosa no tazonina ho produit amidy.</p>
+                  <strong>🎯 Configuration du mannequin</strong>
+                  <label style={{ display: "block", marginTop: 10 }}>Pose</label>
+                  <select className="setting-select" value={mannequinPose} onChange={(e) => setMannequinPose(e.target.value)} style={{ width: "100%" }}>
+                    {MANNEQUIN_POSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                  <label style={{ display: "block", marginTop: 10 }}>Décor</label>
+                  <select className="setting-select" value={mannequinBackground} onChange={(e) => setMannequinBackground(e.target.value)} style={{ width: "100%" }}>
+                    {MANNEQUIN_BACKGROUNDS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  </select>
+                  <textarea className="feature-input" placeholder="Lumière, cadrage, ambiance..." value={mannequinDetails} onChange={(e) => setMannequinDetails(e.target.value)} style={{ marginTop: 10 }} />
+                  <button className="feature-button" type="button" disabled={!mannequinFile} onClick={() => setMessage(prepareMannequinPrompt({ avatarName, avatarGender, avatarStyle, pose: mannequinPose, background: mannequinBackground, details: mannequinDetails }))} style={{ marginTop: 10 }}>
+                    ✨ Préparer la génération
+                  </button>
+                  <p style={{ marginTop: 8 }}>Préparation ihany izao: tsy mbola mandefa sary amin'ny moteur IA.</p>
                 </div>
               </div>
             )}
