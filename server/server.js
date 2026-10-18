@@ -265,15 +265,6 @@ app.post("/api/developer/github-analyze", async (req, res) => {
     }
 
     const [owner, repo] = parts;
-    const cost = CREDIT_COSTS.coding;
-    if (user.credits < cost) {
-      return res.status(402).json({
-        success: false,
-        error: "Tsy ampy ny crédit hanaovana analyse.",
-        credits: user.credits,
-        required: cost,
-      });
-    }
 
     const isOwnRepository =
       owner.toLowerCase() === "raismrakotoniaina-hash" &&
@@ -386,17 +377,16 @@ app.post("/api/developer/github-analyze", async (req, res) => {
       });
     }
 
-    const updatedUser = await spendCredits(user.id, cost, "coding");
-    if (!updatedUser) {
-      return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
-    }
-
+    let credits = null;
+    try { credits = await getCoreAvailableCredits(); } catch { /* Core request already billed; do not repeat it. */ }
     res.json({
       success: true,
       repository: { owner, repo, branch, files: files.length },
       analysis,
-      credits: updatedUser.credits,
-      creditsUsed: cost,
+      credits,
+      creditsUsed: Number(analysis?.usage?.credits) || 0,
+      requestId: analysis?.requestId || null,
+      mode: "core"
     });
   } catch (error) {
     console.error("GitHub project analysis error:", error);
@@ -681,31 +671,20 @@ app.post("/api/developer/analyze", async (req, res) => {
     if (!user) return;
 
     const files = req.body?.files;
-    const cost = CREDIT_COSTS.coding;
-
     if (!Array.isArray(files) || files.length === 0) {
       return res.status(400).json({ success: false, error: "Tsy misy fichier projet." });
     }
-    if (user.credits < cost) {
-      return res.status(402).json({
-        success: false,
-        error: "Tsy ampy ny crédit hanaovana analyse.",
-        credits: user.credits,
-        required: cost,
-      });
-    }
 
     const analysis = await analyzeDeveloperProject(files);
-    const updatedUser = await spendCredits(user.id, cost, "coding");
-    if (!updatedUser) {
-      return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
-    }
-
+    let credits = null;
+    try { credits = await getCoreAvailableCredits(); } catch { /* Core request already billed; do not repeat it. */ }
     res.json({
       success: true,
       analysis,
-      credits: updatedUser.credits,
-      creditsUsed: cost,
+      credits,
+      creditsUsed: Number(analysis?.usage?.credits) || 0,
+      requestId: analysis?.requestId || null,
+      mode: "core"
     });
   } catch (error) {
     console.error("Developer analysis error:", error);
