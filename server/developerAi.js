@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import { coreRequest } from "./coreClient.js";
 
 const MAX_FILES = 50;
 const MAX_FILE_BYTES = 180000;
@@ -140,44 +140,33 @@ function heuristic(files) {
   };
 }
 
-async function analyzeWithOpenAI(files) {
+async function analyzeWithCore(files) {
   const snapshot = files.map((file) => `FILE: ${file.path}\n${file.content}`).join("\n\n");
   const prompt = `Diniho ity projet développeur ity. Valio amin'ny teny Malagasy ary JSON ihany miaraka amin'ny keys: summary, architecture, findings, securityRisks, improvements, nextSteps. Ny findings dia array misy level, area, path raha fantatra, ary message. Aza mamorona fichier na manova code. Ataovy mazava ny zavatra hitanao sy ny zavatra tsy azonao antoka.\n\n${snapshot}`;
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const result = await coreRequest("/chat", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
-      input: [{ role: "user", content: prompt }],
-    }),
+    body: { messages: [
+      { role: "system", content: "Analyze only supplied project files. Return valid JSON, evidence-based, without inventing findings." },
+      { role: "user", content: prompt }
+    ] }
   });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.error?.message || "Developer AI request failed.");
-
-  const raw = data.output_text || "";
+  const raw = result?.data?.message?.content;
+  if (typeof raw !== "string" || !raw.trim()) {
+    throw Object.assign(new Error("4N DEV Core tsy namerina analyse azo ampiasaina."), { status: 502, code: "core_invalid_analysis" });
+  }
   try {
-    return { mode: "openai", ...JSON.parse(raw) };
+    const cleaned = raw.trim().replace(/^`{3}json\s*/i, "").replace(/`{3}$/, "");
+    const parsed = JSON.parse(cleaned);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid object");
+    return { mode: "core", ...parsed, requestId: result.request_id || null, usage: result.usage || null };
   } catch {
-    return {
-      mode: "openai",
-      summary: raw,
-      findings: [],
-      securityRisks: [],
-      improvements: [],
-      nextSteps: [],
-    };
+    return { mode: "core", summary: raw, findings: [], securityRisks: [], improvements: [], nextSteps: [], requestId: result.request_id || null, usage: result.usage || null };
   }
 }
 
 export async function analyzeDeveloperProject(input) {
   const files = normalizeFiles(input);
-  if (!process.env.OPENAI_API_KEY) return heuristic(files);
-  return analyzeWithOpenAI(files);
+  return analyzeWithCore(files);
 }
 
 function localPatch({ path, content, finding = {} }) {
@@ -225,101 +214,38 @@ async function semanticPatch({ path, content, finding = {} }) {
   const target = cleanPath(path);
   const source = String(content ?? "");
   if (!source) throw new Error("Fichier patch tsy mety.");
-
-  const prompt = `Ianao no Semantic Code Repair Engine an'ny N-AI. Mamorona patch azo antoka ho an'ny fichier iray, mifototra amin'ny finding. Aza manova zavatra tsy ilaina. Aza mamorona secrets. Aza manova API keys na credentials. Raha tsy azo antoka ny fanitsiana dia avereno changed=false.
-
-Valio JSON ihany:
-{
-  "changed": true,
-  "reason": "fanazavana fohy amin'ny teny Malagasy",
-  "content": "FENO ny fichier voahitsy",
-  "diff": "famintinana fohy ny fanovana",
-  "confidence": 0.0
-}
-
+  const prompt = `Mamorona patch azo antoka ho an'ny fichier iray, mifototra amin'ny finding. Aza manova zavatra tsy ilaina. Aza mamorona secrets na manova API keys/credentials. Raha tsy azo antoka ny fanitsiana dia avereno changed=false.
+Valio JSON ihany misy changed(boolean), reason(string), content(fichier feno), diff(string), confidence(number).
 Path: ${target}
-Finding:
-${JSON.stringify(finding)}
-
+Finding: ${JSON.stringify(finding)}
 Fichier ankehitriny:
 ${source}`;
-
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const result = await coreRequest("/chat", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
-      input: [{ role: "user", content: prompt }],
-      max_output_tokens: 30000,
-      text: {
-        format: {
-          type: "json_schema",
-          name: "developer_patch",
-          strict: true,
-          schema: {
-            type: "object",
-            properties: {
-              changed: { type: "boolean" },
-              reason: { type: "string" },
-              content: { type: "string" },
-              diff: { type: "string" },
-              confidence: { type: "number" },
-            },
-            required: ["changed", "reason", "content", "diff", "confidence"],
-            additionalProperties: false,
-          },
-        },
-      },
-    }),
+    body: { messages: [
+      { role: "system", content: "You are a conservative code repair engine. Return only valid JSON with changed, reason, content, diff, confidence. Never modify secrets or credentials." },
+      { role: "user", content: prompt }
+    ] }
   });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data?.error?.message || "Semantic patch request failed.");
-  }
-
-  const raw = String(data.output_text || "").trim();
+  const raw = String(result?.data?.message?.content || "").trim();
   let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error("Semantic AI namaly tsy JSON; tsy natao ny patch.");
+  try { parsed = JSON.parse(raw.replace(/^`{3}json\s*/i, "").replace(/`{3}$/, "")); }
+  catch { throw Object.assign(new Error("Semantic AI namaly tsy JSON; tsy natao ny patch."), { status: 502, code: "core_invalid_patch" }); }
+  if (!parsed || typeof parsed !== "object" || typeof parsed.changed !== "boolean" ||
+      typeof parsed.reason !== "string" || typeof parsed.content !== "string" ||
+      typeof parsed.diff !== "string" || !Number.isFinite(Number(parsed.confidence))) {
+    throw Object.assign(new Error("Format patch tsy feno; tsy nekena."), { status: 502, code: "core_invalid_patch" });
   }
-
-  const nextContent = typeof parsed.content === "string" ? parsed.content : "";
-  const changed = parsed.changed === true && nextContent && nextContent !== source;
-  const confidence = Number(parsed.confidence);
-
-  if (!changed) {
-    return {
-      mode: "openai",
-      changed: false,
-      reason: parsed.reason || "Tsy nahita fanitsiana azo antoka ny Semantic AI.",
-      content: source,
-      diff: parsed.diff || "",
-      confidence: Number.isFinite(confidence) ? confidence : 0,
-    };
-  }
-
-  if (nextContent.length > MAX_FILE_BYTES) {
-    throw new Error("Semantic patch lehibe loatra; tsy nekena.");
-  }
-
-  return {
-    mode: "openai",
-    changed: true,
-    reason: parsed.reason || "Patch semantic voaomana.",
-    content: nextContent,
-    diff: parsed.diff || "Nisy fanovana semantic tao amin'ny fichier.",
-    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
-  };
+  const nextContent = parsed.content;
+  const changed = parsed.changed === true && nextContent !== source;
+  const confidence = Math.max(0, Math.min(1, Number(parsed.confidence)));
+  if (!changed) return { mode: "core", changed: false, reason: parsed.reason, content: source, diff: parsed.diff, confidence, requestId: result.request_id || null, usage: result.usage || null };
+  if (Buffer.byteLength(nextContent, "utf8") > MAX_FILE_BYTES) throw Object.assign(new Error("Semantic patch lehibe loatra; tsy nekena."), { status: 400, code: "patch_too_large" });
+  if (/^(<<<<<<< |=======\s*$|>>>>>>> )/m.test(nextContent)) throw Object.assign(new Error("Patch misy merge conflict; tsy nekena."), { status: 400, code: "patch_merge_conflict" });
+  return { mode: "core", changed: true, reason: parsed.reason, content: nextContent, diff: parsed.diff, confidence, requestId: result.request_id || null, usage: result.usage || null };
 }
 
 export async function generateDeveloperPatch(input) {
-  if (!process.env.OPENAI_API_KEY) return localPatch(input);
   return semanticPatch(input);
 }
 

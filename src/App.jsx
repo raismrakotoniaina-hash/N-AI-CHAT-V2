@@ -180,7 +180,13 @@ function App() {
 
           if (data.user) {
             setUser(data.user);
-            setCredits(data.user.credits ?? 0);
+            try {
+              const balanceResponse = await fetch(apiUrl("/api/credits"), { credentials: "include" });
+              const balanceData = await balanceResponse.json();
+              setCredits(balanceResponse.ok ? (balanceData.credits ?? 0) : 0);
+            } catch {
+              setCredits(0);
+            }
             setIsRepositoryOwner(Boolean(data.user.isRepositoryOwner));
           }
         }
@@ -345,9 +351,16 @@ function App() {
 
   const handleAuthenticated = (account) => {
     setUser(account);
-    setCredits(account.credits ?? 0);
+    setCredits(0);
     setIsRepositoryOwner(Boolean(account.isRepositoryOwner));
     setCurrentPage("chat");
+    fetch(apiUrl("/api/credits"), { credentials: "include" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Unable to read Core credits.");
+        setCredits(data.credits ?? 0);
+      })
+      .catch(() => setCredits(0));
   };
 
   const handleLogout = async () => {
@@ -703,7 +716,9 @@ function App() {
         const data = await response.json();
         if (data.user) {
           setUser(data.user);
-          setCredits(data.user.credits ?? 0);
+          const balanceResponse = await fetch(apiUrl("/api/credits"), { credentials: "include" });
+          const balanceData = await balanceResponse.json();
+          setCredits(balanceResponse.ok ? (balanceData.credits ?? 0) : 0);
         }
       } catch (error) {
         console.error("Payment account refresh error:", error);

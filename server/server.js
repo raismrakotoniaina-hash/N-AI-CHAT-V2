@@ -11,6 +11,7 @@ import { listRepository, readRepositoryFile, proposeChange, analyzeRepositorySna
 import { analyzeRepositoryWithAI, ANALYSIS_FILES } from "./repositoryAi.js";
 import { analyzeDeveloperProject, generateDeveloperPatch } from "./developerAi.js";
 import { generateImage } from "./imageGeneration.js";
+import { coreRequest, getCoreAvailableCredits } from "./coreClient.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -264,15 +265,6 @@ app.post("/api/developer/github-analyze", async (req, res) => {
     }
 
     const [owner, repo] = parts;
-    const cost = CREDIT_COSTS.coding;
-    if (user.credits < cost) {
-      return res.status(402).json({
-        success: false,
-        error: "Tsy ampy ny crédit hanaovana analyse.",
-        credits: user.credits,
-        required: cost,
-      });
-    }
 
     const isOwnRepository =
       owner.toLowerCase() === "raismrakotoniaina-hash" &&
@@ -385,21 +377,20 @@ app.post("/api/developer/github-analyze", async (req, res) => {
       });
     }
 
-    const updatedUser = await spendCredits(user.id, cost, "coding");
-    if (!updatedUser) {
-      return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
-    }
-
+    let credits = null;
+    try { credits = await getCoreAvailableCredits(); } catch { /* Core request already billed; do not repeat it. */ }
     res.json({
       success: true,
       repository: { owner, repo, branch, files: files.length },
       analysis,
-      credits: updatedUser.credits,
-      creditsUsed: cost,
+      credits,
+      creditsUsed: Number(analysis?.usage?.credits) || 0,
+      requestId: analysis?.requestId || null,
+      mode: "core"
     });
   } catch (error) {
-    console.error("GitHub project analysis error:", error);
-    res.status(400).json({ success: false, error: error.message || "GitHub project analysis failed." });
+    console.error("GitHub project analysis error:", error.code || error.status || "unknown_error");
+    res.status(error.status || 400).json({ success: false, error: error.message || "GitHub project analysis failed.", code: error.code || undefined });
   }
 });
 
@@ -520,8 +511,8 @@ app.post("/api/developer/github-patch-preview", async (req, res) => {
         : patch.reason,
     });
   } catch (error) {
-    console.error("Developer patch preview error:", error);
-    res.status(400).json({ success: false, error: error.message || "Developer patch preview failed." });
+    console.error("Developer patch preview error:", error.code || error.status || "unknown_error");
+    res.status(error.status || 400).json({ success: false, error: error.message || "Developer patch preview failed.", code: error.code || undefined });
   }
 });
 
@@ -680,35 +671,24 @@ app.post("/api/developer/analyze", async (req, res) => {
     if (!user) return;
 
     const files = req.body?.files;
-    const cost = CREDIT_COSTS.coding;
-
     if (!Array.isArray(files) || files.length === 0) {
       return res.status(400).json({ success: false, error: "Tsy misy fichier projet." });
     }
-    if (user.credits < cost) {
-      return res.status(402).json({
-        success: false,
-        error: "Tsy ampy ny crédit hanaovana analyse.",
-        credits: user.credits,
-        required: cost,
-      });
-    }
 
     const analysis = await analyzeDeveloperProject(files);
-    const updatedUser = await spendCredits(user.id, cost, "coding");
-    if (!updatedUser) {
-      return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
-    }
-
+    let credits = null;
+    try { credits = await getCoreAvailableCredits(); } catch { /* Core request already billed; do not repeat it. */ }
     res.json({
       success: true,
       analysis,
-      credits: updatedUser.credits,
-      creditsUsed: cost,
+      credits,
+      creditsUsed: Number(analysis?.usage?.credits) || 0,
+      requestId: analysis?.requestId || null,
+      mode: "core"
     });
   } catch (error) {
-    console.error("Developer analysis error:", error);
-    res.status(400).json({ success: false, error: error.message || "Developer analysis failed." });
+    console.error("Developer analysis error:", error.code || error.status || "unknown_error");
+    res.status(error.status || 400).json({ success: false, error: error.message || "Developer analysis failed.", code: error.code || undefined });
   }
 });
 
@@ -723,86 +703,84 @@ app.post("/api/image/generate", async (req, res) => {
       : null;
     if (!prompt) return res.status(400).json({ success: false, error: "Prompt image ilaina." });
     if (prompt.length > 6000) return res.status(400).json({ success: false, error: "Prompt image lava loatra." });
-
-    const cost = CREDIT_COSTS.image;
-    if (user.credits < cost) {
-      return res.status(402).json({ success: false, error: "Tsy ampy ny crédit hanaovana image.", credits: user.credits, required: cost });
-    }
-
-    if (DEMO_MODE) {
-      return res.json({
-        success: true,
-        mode: "demo",
-        generated: false,
-        message: "Demo Mode: voaomana ny image request, fa mbola tsy mandeha ny génération IA.",
-        credits: user.credits,
-        creditsUsed: 0,
+    if (referenceImageDataUrl) {
+      return res.status(400).json({
+        success: false,
+        error: "Image editing with a reference image is not yet supported through 4N DEV Core."
       });
     }
 
-    const result = await generateImage({ prompt, referenceImageDataUrl });
-    const updatedUser = await spendCredits(user.id, cost, "image");
-    if (!updatedUser) return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
+    const result = await coreRequest("/image", {
+      method: "POST",
+      body: { prompt }
+    });
+    const imageDataUrl = result?.data?.images?.[0]?.url;
+    if (typeof imageDataUrl !== "string" || !imageDataUrl.startsWith("data:image/")) {
+      return res.status(502).json({ success: false, error: "4N DEV Core returned no usable image." });
+    }
 
-    res.json({
+    let credits = null;
+    try {
+      credits = await getCoreAvailableCredits();
+    } catch {
+      // Do not repeat a billed image request if balance refresh fails.
+    }
+
+    return res.json({
       success: true,
-      mode: "live",
+      mode: "core",
       generated: true,
-      imageDataUrl: result.imageDataUrl,
-      responseId: result.responseId,
-      credits: updatedUser.credits,
-      creditsUsed: cost,
+      imageDataUrl,
+      responseId: result.request_id || null,
+      credits,
+      creditsUsed: Number(result?.usage?.credits) || 0
     });
   } catch (error) {
-    console.error("Image generation error:", error);
-    res.status(502).json({ success: false, error: error.message || "Image generation failed." });
+    console.error("4N DEV Core image request failed:", error.code || error.status || "unknown_error");
+    return res.status(error.status || 502).json({
+      success: false,
+      error: error.message || "4N DEV Core image request failed.",
+      code: error.code || "core_image_failed"
+    });
   }
 });
 
 app.get("/api/credits", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) return;
-  res.json({ success: true, credits: user.credits, costs: CREDIT_COSTS, mode: "account" });
+  try {
+    const core = await coreRequest("/credits");
+    const balance = Number(core?.data?.balance);
+    const reserved = Number(core?.data?.reserved_balance);
+    const available = Number(core?.data?.available_balance);
+    if (![balance, reserved, available].every(Number.isFinite)) {
+      return res.status(502).json({ success: false, error: "4N DEV Core returned an invalid credit balance." });
+    }
+    return res.json({
+      success: true,
+      credits: Math.max(0, available),
+      balance: Math.max(0, balance),
+      reservedCredits: Math.max(0, reserved),
+      currency: core?.data?.currency || "USD",
+      mode: "core"
+    });
+  } catch (error) {
+    return res.status(error.status || 503).json({
+      success: false,
+      error: error.message || "Unable to read the 4N DEV Core credit balance.",
+      code: error.code || "core_unavailable"
+    });
+  }
 });
 
 app.post("/api/payments/create", async (req, res) => {
-  try {
-    const user = await requireUser(req, res);
-    if (!user) return;
-    const { planId, provider } = req.body || {};
-    const plans = { basic: { price: 9900, credits: 300 }, premium: { price: 21900, credits: 1200 }, pro: { price: 49900, credits: 3500 } };
-    const plan = plans[planId];
-    if (!plan) return res.status(400).json({ success: false, error: "Plan invalide." });
-    if (!PAPI_API_KEY) return res.status(503).json({ success: false, error: "PAPI_API_KEY tsy mbola voapetraka ao amin'ny serveur." });
-    if (!PUBLIC_FRONTEND_URL) return res.status(503).json({ success: false, error: "PUBLIC_FRONTEND_URL tsy mbola voapetraka." });
-    if (!PUBLIC_API_URL) return res.status(503).json({ success: false, error: "PUBLIC_API_URL tsy mbola voapetraka." });
-    if (!PAPI_WEBHOOK_SECRET) return res.status(503).json({ success: false, error: "PAPI_WEBHOOK_SECRET tsy mbola voapetraka ao amin'ny serveur." });
-
-    const reference = `NAI-${user.id.slice(0, 8)}-${Date.now()}`;
-    const payload = {
-      amount: plan.price, currency: "MGA", clientName: user.name, reference,
-      description: `N-AI Chat V2 - ${planId} - ${plan.credits} credits`,
-      successUrl: `${PUBLIC_FRONTEND_URL}/?payment=success&reference=${encodeURIComponent(reference)}`,
-      failureUrl: `${PUBLIC_FRONTEND_URL}/?payment=failure&reference=${encodeURIComponent(reference)}`,
-      notificationUrl: `${PUBLIC_API_URL}/api/payments/papi/notify`,
-      validDuration: 2, ...(provider ? { provider } : {}), payerEmail: user.email,
-    };
-    const response = await fetch("https://app.papi.mg/engine/api/payment-links", {
-      method: "POST", headers: { "Content-Type": "application/json", Token: PAPI_API_KEY }, body: JSON.stringify(payload),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) return res.status(response.status).json({ success: false, error: data?.error?.message || data?.message || data?.error || "PAPI payment creation failed." });
-    const result = data?.data || data;
-    if (!result.paymentLink || !result.notificationToken) return res.status(502).json({ success: false, error: "PAPI payment link response is incomplete." });
-
-    const payments = await getCollection("payments");
-    payments.push({ reference, userId: user.id, planId, amount: plan.price, credits: plan.credits, status: "pending", notificationToken: result.notificationToken, createdAt: new Date().toISOString() });
-    await setCollection("payments", payments);
-    res.json({ success: true, paymentLink: result.paymentLink, reference, status: "pending" });
-  } catch (error) {
-    console.error("Payment create error:", error);
-    res.status(500).json({ success: false, error: "Payment service error." });
-  }
+  const user = await requireUser(req, res);
+  if (!user) return;
+  return res.status(410).json({
+    success: false,
+    code: "core_billing_only",
+    error: "N-AI Chat V2 no longer sells local credits. Please add prepaid credits through your 4N DEV Core Console workspace."
+  });
 });
 
 app.get("/api/payments/history", async (req, res) => {
@@ -833,41 +811,67 @@ app.get("/api/payments/:reference", async (req, res) => {
   res.json({ success: true, payment: { reference: payment.reference, planId: payment.planId, amount: payment.amount, credits: payment.credits, status: payment.status, createdAt: payment.createdAt, paidAt: payment.paidAt || null } });
 });
 
-function buildDemoResponse(messages) {
-  const last = messages.filter((m) => m?.role === "user").at(-1)?.content || "";
-  return `Salama 👋 Izaho no N-AI Chat V2.
-
-Voaray ny hafatrao: "${last}"
-
-🧪 Demo Mode: mandeha tsara ny N-AI API, ka afaka mitsapa ny interface sy ny credit system isika na dia mbola tsy nampifandray OpenAI billing aza.`;
-}
 app.post("/api/chat", async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { messages, operation = "chat" } = req.body;
-    if (!Array.isArray(messages) || messages.length === 0) return res.status(400).json({ success: false, error: "Messages are required." });
-    const cost = CREDIT_COSTS[operation] ?? CREDIT_COSTS.chat;
-    if (user.credits < cost) return res.status(402).json({ success: false, error: "You have no credit remaining, add credit to continue.", credits: user.credits, required: cost });
 
-    if (DEMO_MODE) {
-      const updatedUser = await spendCredits(user.id, cost, operation);
-      if (!updatedUser) return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
-      return res.json({ success: true, mode: "demo", model: "n-ai-demo", response: buildDemoResponse(messages), responseId: null, credits: updatedUser.credits, creditsUsed: cost });
+    const { messages, operation = "chat" } = req.body || {};
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ success: false, error: "Messages are required." });
+    }
+    if (!["chat", "coding", "research"].includes(operation)) {
+      return res.status(400).json({ success: false, error: "Unsupported operation." });
     }
 
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: OPENAI_MODEL, input: messages }),
+    const safeMessages = messages.map((message) => ({
+      role: message?.role,
+      content: typeof message?.content === "string" ? message.content : ""
+    }));
+    let coreResult;
+    if (operation === "coding") {
+      const prompt = safeMessages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join("\n\n");
+      coreResult = await coreRequest("/coding", {
+        method: "POST",
+        body: { prompt }
+      });
+    } else {
+      const coreMessages = operation === "research"
+        ? [{ role: "system", content: "Answer as a careful research assistant. Distinguish established facts from uncertainty, and explain sources or verification steps when relevant." }, ...safeMessages]
+        : safeMessages;
+      coreResult = await coreRequest("/chat", {
+        method: "POST",
+        body: { messages: coreMessages }
+      });
+    }
+
+    const responseText = operation === "coding"
+      ? (coreResult?.data?.output || "")
+      : (coreResult?.data?.message?.content || "");
+    let credits = null;
+    try {
+      credits = await getCoreAvailableCredits();
+    } catch {
+      // The AI response succeeded; a temporary balance-read failure must not repeat the billed request.
+    }
+
+    return res.json({
+      success: true,
+      mode: "core",
+      model: coreResult.model || null,
+      response: responseText,
+      responseId: coreResult.request_id || null,
+      credits,
+      creditsUsed: Number(coreResult?.usage?.credits) || 0,
+      usage: coreResult.usage || null
     });
-    const data = await response.json();
-    if (!response.ok) return res.status(response.status).json({ success: false, error: data?.error?.message || "OpenAI API request failed.", credits: user.credits });
-    const updatedUser = await spendCredits(user.id, cost, operation);
-    if (!updatedUser) return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
-    res.json({ success: true, model: OPENAI_MODEL, response: data.output_text || "", responseId: data.id || null, credits: updatedUser.credits, creditsUsed: cost });
   } catch (error) {
-    console.error("Chat API error:", error);
-    res.status(500).json({ success: false, error: "Internal server error.", credits: 0 });
+    console.error("4N DEV Core chat request failed:", error.code || error.status || "unknown_error");
+    return res.status(error.status || 502).json({
+      success: false,
+      error: error.message || "4N DEV Core request failed.",
+      code: error.code || "core_request_failed"
+    });
   }
 });
 
