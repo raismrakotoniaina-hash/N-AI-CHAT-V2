@@ -724,39 +724,45 @@ app.post("/api/image/generate", async (req, res) => {
       : null;
     if (!prompt) return res.status(400).json({ success: false, error: "Prompt image ilaina." });
     if (prompt.length > 6000) return res.status(400).json({ success: false, error: "Prompt image lava loatra." });
-
-    const cost = CREDIT_COSTS.image;
-    if (user.credits < cost) {
-      return res.status(402).json({ success: false, error: "Tsy ampy ny crédit hanaovana image.", credits: user.credits, required: cost });
-    }
-
-    if (DEMO_MODE) {
-      return res.json({
-        success: true,
-        mode: "demo",
-        generated: false,
-        message: "Demo Mode: voaomana ny image request, fa mbola tsy mandeha ny génération IA.",
-        credits: user.credits,
-        creditsUsed: 0,
+    if (referenceImageDataUrl) {
+      return res.status(400).json({
+        success: false,
+        error: "Image editing with a reference image is not yet supported through 4N DEV Core."
       });
     }
 
-    const result = await generateImage({ prompt, referenceImageDataUrl });
-    const updatedUser = await spendCredits(user.id, cost, "image");
-    if (!updatedUser) return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
+    const result = await coreRequest("/image", {
+      method: "POST",
+      body: { prompt }
+    });
+    const imageDataUrl = result?.data?.images?.[0]?.url;
+    if (typeof imageDataUrl !== "string" || !imageDataUrl.startsWith("data:image/")) {
+      return res.status(502).json({ success: false, error: "4N DEV Core returned no usable image." });
+    }
 
-    res.json({
+    let credits = null;
+    try {
+      credits = await getCoreAvailableCredits();
+    } catch {
+      // Do not repeat a billed image request if balance refresh fails.
+    }
+
+    return res.json({
       success: true,
-      mode: "live",
+      mode: "core",
       generated: true,
-      imageDataUrl: result.imageDataUrl,
-      responseId: result.responseId,
-      credits: updatedUser.credits,
-      creditsUsed: cost,
+      imageDataUrl,
+      responseId: result.request_id || null,
+      credits,
+      creditsUsed: Number(result?.usage?.credits) || 0
     });
   } catch (error) {
-    console.error("Image generation error:", error);
-    res.status(502).json({ success: false, error: error.message || "Image generation failed." });
+    console.error("4N DEV Core image request failed:", error.code || error.status || "unknown_error");
+    return res.status(error.status || 502).json({
+      success: false,
+      error: error.message || "4N DEV Core image request failed.",
+      code: error.code || "core_image_failed"
+    });
   }
 });
 
