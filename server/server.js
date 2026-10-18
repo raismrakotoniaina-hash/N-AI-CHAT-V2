@@ -795,43 +795,13 @@ app.get("/api/credits", async (req, res) => {
 });
 
 app.post("/api/payments/create", async (req, res) => {
-  try {
-    const user = await requireUser(req, res);
-    if (!user) return;
-    const { planId, provider } = req.body || {};
-    const plans = { basic: { price: 9900, credits: 300 }, premium: { price: 21900, credits: 1200 }, pro: { price: 49900, credits: 3500 } };
-    const plan = plans[planId];
-    if (!plan) return res.status(400).json({ success: false, error: "Plan invalide." });
-    if (!PAPI_API_KEY) return res.status(503).json({ success: false, error: "PAPI_API_KEY tsy mbola voapetraka ao amin'ny serveur." });
-    if (!PUBLIC_FRONTEND_URL) return res.status(503).json({ success: false, error: "PUBLIC_FRONTEND_URL tsy mbola voapetraka." });
-    if (!PUBLIC_API_URL) return res.status(503).json({ success: false, error: "PUBLIC_API_URL tsy mbola voapetraka." });
-    if (!PAPI_WEBHOOK_SECRET) return res.status(503).json({ success: false, error: "PAPI_WEBHOOK_SECRET tsy mbola voapetraka ao amin'ny serveur." });
-
-    const reference = `NAI-${user.id.slice(0, 8)}-${Date.now()}`;
-    const payload = {
-      amount: plan.price, currency: "MGA", clientName: user.name, reference,
-      description: `N-AI Chat V2 - ${planId} - ${plan.credits} credits`,
-      successUrl: `${PUBLIC_FRONTEND_URL}/?payment=success&reference=${encodeURIComponent(reference)}`,
-      failureUrl: `${PUBLIC_FRONTEND_URL}/?payment=failure&reference=${encodeURIComponent(reference)}`,
-      notificationUrl: `${PUBLIC_API_URL}/api/payments/papi/notify`,
-      validDuration: 2, ...(provider ? { provider } : {}), payerEmail: user.email,
-    };
-    const response = await fetch("https://app.papi.mg/engine/api/payment-links", {
-      method: "POST", headers: { "Content-Type": "application/json", Token: PAPI_API_KEY }, body: JSON.stringify(payload),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) return res.status(response.status).json({ success: false, error: data?.error?.message || data?.message || data?.error || "PAPI payment creation failed." });
-    const result = data?.data || data;
-    if (!result.paymentLink || !result.notificationToken) return res.status(502).json({ success: false, error: "PAPI payment link response is incomplete." });
-
-    const payments = await getCollection("payments");
-    payments.push({ reference, userId: user.id, planId, amount: plan.price, credits: plan.credits, status: "pending", notificationToken: result.notificationToken, createdAt: new Date().toISOString() });
-    await setCollection("payments", payments);
-    res.json({ success: true, paymentLink: result.paymentLink, reference, status: "pending" });
-  } catch (error) {
-    console.error("Payment create error:", error);
-    res.status(500).json({ success: false, error: "Payment service error." });
-  }
+  const user = await requireUser(req, res);
+  if (!user) return;
+  return res.status(410).json({
+    success: false,
+    code: "core_billing_only",
+    error: "N-AI Chat V2 no longer sells local credits. Please add prepaid credits through your 4N DEV Core Console workspace."
+  });
 });
 
 app.get("/api/payments/history", async (req, res) => {
