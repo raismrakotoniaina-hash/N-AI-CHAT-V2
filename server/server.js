@@ -11,6 +11,7 @@ import { listRepository, readRepositoryFile, proposeChange, analyzeRepositorySna
 import { analyzeRepositoryWithAI, ANALYSIS_FILES } from "./repositoryAi.js";
 import { analyzeDeveloperProject, generateDeveloperPatch } from "./developerAi.js";
 import { generateImage } from "./imageGeneration.js";
+import { coreRequest, getCoreAvailableCredits } from "./coreClient.js";
 
 dotenv.config({ path: new URL("../.env", import.meta.url) });
 
@@ -762,7 +763,29 @@ app.post("/api/image/generate", async (req, res) => {
 app.get("/api/credits", async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) return;
-  res.json({ success: true, credits: user.credits, costs: CREDIT_COSTS, mode: "account" });
+  try {
+    const core = await coreRequest("/credits");
+    const balance = Number(core?.data?.balance);
+    const reserved = Number(core?.data?.reserved_balance);
+    const available = Number(core?.data?.available_balance);
+    if (![balance, reserved, available].every(Number.isFinite)) {
+      return res.status(502).json({ success: false, error: "4N DEV Core returned an invalid credit balance." });
+    }
+    return res.json({
+      success: true,
+      credits: Math.max(0, available),
+      balance: Math.max(0, balance),
+      reservedCredits: Math.max(0, reserved),
+      currency: core?.data?.currency || "USD",
+      mode: "core"
+    });
+  } catch (error) {
+    return res.status(error.status || 503).json({
+      success: false,
+      error: error.message || "Unable to read the 4N DEV Core credit balance.",
+      code: error.code || "core_unavailable"
+    });
+  }
 });
 
 app.post("/api/payments/create", async (req, res) => {
@@ -833,41 +856,67 @@ app.get("/api/payments/:reference", async (req, res) => {
   res.json({ success: true, payment: { reference: payment.reference, planId: payment.planId, amount: payment.amount, credits: payment.credits, status: payment.status, createdAt: payment.createdAt, paidAt: payment.paidAt || null } });
 });
 
-function buildDemoResponse(messages) {
-  const last = messages.filter((m) => m?.role === "user").at(-1)?.content || "";
-  return `Salama 👋 Izaho no N-AI Chat V2.
-
-Voaray ny hafatrao: "${last}"
-
-🧪 Demo Mode: mandeha tsara ny N-AI API, ka afaka mitsapa ny interface sy ny credit system isika na dia mbola tsy nampifandray OpenAI billing aza.`;
-}
 app.post("/api/chat", async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { messages, operation = "chat" } = req.body;
-    if (!Array.isArray(messages) || messages.length === 0) return res.status(400).json({ success: false, error: "Messages are required." });
-    const cost = CREDIT_COSTS[operation] ?? CREDIT_COSTS.chat;
-    if (user.credits < cost) return res.status(402).json({ success: false, error: "You have no credit remaining, add credit to continue.", credits: user.credits, required: cost });
 
-    if (DEMO_MODE) {
-      const updatedUser = await spendCredits(user.id, cost, operation);
-      if (!updatedUser) return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
-      return res.json({ success: true, mode: "demo", model: "n-ai-demo", response: buildDemoResponse(messages), responseId: null, credits: updatedUser.credits, creditsUsed: cost });
+    const { messages, operation = "chat" } = req.body || {};
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ success: false, error: "Messages are required." });
+    }
+    if (!["chat", "coding", "research"].includes(operation)) {
+      return res.status(400).json({ success: false, error: "Unsupported operation." });
     }
 
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: OPENAI_MODEL, input: messages }),
+    const safeMessages = messages.map((message) => ({
+      role: message?.role,
+      content: typeof message?.content === "string" ? message.content : ""
+    }));
+    let coreResult;
+    if (operation === "coding") {
+      const prompt = safeMessages.map((message) => `${message.role.toUpperCase()}: ${message.content}`).join("\n\n");
+      coreResult = await coreRequest("/coding", {
+        method: "POST",
+        body: { prompt }
+      });
+    } else {
+      const coreMessages = operation === "research"
+        ? [{ role: "system", content: "Answer as a careful research assistant. Distinguish established facts from uncertainty, and explain sources or verification steps when relevant." }, ...safeMessages]
+        : safeMessages;
+      coreResult = await coreRequest("/chat", {
+        method: "POST",
+        body: { messages: coreMessages }
+      });
+    }
+
+    const responseText = operation === "coding"
+      ? (coreResult?.data?.output || "")
+      : (coreResult?.data?.message?.content || "");
+    let credits = null;
+    try {
+      credits = await getCoreAvailableCredits();
+    } catch {
+      // The AI response succeeded; a temporary balance-read failure must not repeat the billed request.
+    }
+
+    return res.json({
+      success: true,
+      mode: "core",
+      model: coreResult.model || null,
+      response: responseText,
+      responseId: coreResult.request_id || null,
+      credits,
+      creditsUsed: Number(coreResult?.usage?.credits) || 0,
+      usage: coreResult.usage || null
     });
-    const data = await response.json();
-    if (!response.ok) return res.status(response.status).json({ success: false, error: data?.error?.message || "OpenAI API request failed.", credits: user.credits });
-    const updatedUser = await spendCredits(user.id, cost, operation);
-    if (!updatedUser) return res.status(409).json({ success: false, error: "Credit balance changed. Please try again." });
-    res.json({ success: true, model: OPENAI_MODEL, response: data.output_text || "", responseId: data.id || null, credits: updatedUser.credits, creditsUsed: cost });
   } catch (error) {
-    console.error("Chat API error:", error);
-    res.status(500).json({ success: false, error: "Internal server error.", credits: 0 });
+    console.error("4N DEV Core chat request failed:", error.code || error.status || "unknown_error");
+    return res.status(error.status || 502).json({
+      success: false,
+      error: error.message || "4N DEV Core request failed.",
+      code: error.code || "core_request_failed"
+    });
   }
 });
 
