@@ -13,9 +13,9 @@ export async function coreRequest(path, { method = "GET", body } = {}) {
     throw coreError("4N DEV Core is not configured on the N-AI server.", 503, "core_not_configured");
   }
 
-  const baseUrl = (process.env.CORE_API_URL || DEFAULT_CORE_API_URL).replace(/\\/+$/, "");
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const headers = { Authorization: `Bearer ${apiKey}`, Accept: "application/json" };
+  const baseUrl = (process.env.CORE_API_URL || DEFAULT_CORE_API_URL).replace(/\/+$/, "");
+  const normalizedPath = path.startsWith("/") ? path : \`/\${path}\`;
+  const headers = { Authorization: \`Bearer \${apiKey}\`, Accept: "application/json" };
   const options = { method, headers, signal: AbortSignal.timeout(45000) };
 
   if (body !== undefined) {
@@ -25,7 +25,7 @@ export async function coreRequest(path, { method = "GET", body } = {}) {
 
   let response;
   try {
-    response = await fetch(`${baseUrl}/v1${normalizedPath}`, options);
+    response = await fetch(\`\${baseUrl}/v1\${normalizedPath}\`, options);
   } catch {
     throw coreError("Unable to connect to 4N DEV Core. Please try again later.", 502, "core_unreachable");
   }
