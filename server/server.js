@@ -389,8 +389,8 @@ app.post("/api/developer/github-analyze", async (req, res) => {
       mode: "core"
     });
   } catch (error) {
-    console.error("GitHub project analysis error:", error);
-    res.status(400).json({ success: false, error: error.message || "GitHub project analysis failed." });
+    console.error("GitHub project analysis error:", error.code || error.status || "unknown_error");
+    res.status(error.status || 400).json({ success: false, error: error.message || "GitHub project analysis failed.", code: error.code || undefined });
   }
 });
 
@@ -511,8 +511,8 @@ app.post("/api/developer/github-patch-preview", async (req, res) => {
         : patch.reason,
     });
   } catch (error) {
-    console.error("Developer patch preview error:", error);
-    res.status(400).json({ success: false, error: error.message || "Developer patch preview failed." });
+    console.error("Developer patch preview error:", error.code || error.status || "unknown_error");
+    res.status(error.status || 400).json({ success: false, error: error.message || "Developer patch preview failed.", code: error.code || undefined });
   }
 });
 
@@ -687,8 +687,8 @@ app.post("/api/developer/analyze", async (req, res) => {
       mode: "core"
     });
   } catch (error) {
-    console.error("Developer analysis error:", error);
-    res.status(400).json({ success: false, error: error.message || "Developer analysis failed." });
+    console.error("Developer analysis error:", error.code || error.status || "unknown_error");
+    res.status(error.status || 400).json({ success: false, error: error.message || "Developer analysis failed.", code: error.code || undefined });
   }
 });
 
